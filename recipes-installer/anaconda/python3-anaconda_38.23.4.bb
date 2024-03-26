@@ -79,7 +79,7 @@ SRCREV = "55bc10f4e8a30eb6f21246ceaca1565d67f0c99e"
 S = "${WORKDIR}/git"
 
 inherit autotools-brokensep features_check gettext gobject-introspection python3native pkgconfig
-REQUIRED_DISTRO_FEATURES = "systemd x11"
+REQUIRED_DISTRO_FEATURES = "systemd x11 opengl"
 
 EXTRA_OECONF += "--disable-selinux \
                  --disable-webui \
