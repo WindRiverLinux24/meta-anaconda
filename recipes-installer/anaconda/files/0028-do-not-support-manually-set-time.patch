@@ -13,17 +13,22 @@ Signed-off-by: Hongxu Jia <hongxu.jia@windriver.com>
 Rebase for anaconda 34.
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+Rebase for anaconda 39 on 20240304.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
 ---
  pyanaconda/ui/gui/spokes/datetime_spoke.py | 3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/pyanaconda/ui/gui/spokes/datetime_spoke.py b/pyanaconda/ui/gui/spokes/datetime_spoke.py
-index 58050c0b3..ff4b69577 100644
+index 17580c0659..7ccefb6b50 100644
 --- a/pyanaconda/ui/gui/spokes/datetime_spoke.py
 +++ b/pyanaconda/ui/gui/spokes/datetime_spoke.py
-@@ -542,6 +542,9 @@ class DatetimeSpoke(FirstbootSpokeMixIn, NormalSpoke):
+@@ -316,6 +316,9 @@ class DatetimeSpoke(FirstbootSpokeMixIn, NormalSpoke):
                               _("Restoring hardware time..."))
-             threadMgr.wait(constants.THREAD_TIME_INIT)
+             thread_manager.wait(constants.THREAD_TIME_INIT)
  
 +        # Do not support manually set time
 +        self._set_date_time_setting_sensitive(False)
@@ -33,4 +38,3 @@ index 58050c0b3..ff4b69577 100644
          # report that we are done
 -- 
 2.7.4
-
