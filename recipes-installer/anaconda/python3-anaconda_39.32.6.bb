@@ -8,7 +8,7 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=b234ee4d69f5fce4486a80fdaf4a4263"
 
 DEPENDS = "gdk-pixbuf-native e2fsprogs gettext glade libxklavier rpm"
 
-SRC_URI = "git://github.com/rhinstaller/anaconda.git;protocol=https;branch=fedora-38 \
+SRC_URI = "git://github.com/rhinstaller/anaconda.git;protocol=https;branch=fedora-39 \
            file://fedora.css \
            file://81-edit-sudoers.ks \
            file://81-systemd-preset-all.ks \
@@ -71,10 +71,9 @@ SRC_URI = "git://github.com/rhinstaller/anaconda.git;protocol=https;branch=fedor
            file://0081-always-write-fstab-after-install.patch \
            file://0082-fix-grub-efi-boot-failure.patch \
            file://0083-reset-default-autopart-type.patch \
-           file://0084-Import-BlockDev-from-blivet-instead-of-gi.patch \
            "
 
-SRCREV = "55bc10f4e8a30eb6f21246ceaca1565d67f0c99e"
+SRCREV = "1a4aed721074ddcd84df88089024378c894ec65e"
 
 S = "${WORKDIR}/git"
 
@@ -111,13 +110,13 @@ COMPATIBLE_HOST:armv7ve = 'null'
 
 FILES:${PN}-dbg += "${libexecdir}/anaconda/.debug ${PYTHON_SITEPACKAGES_DIR}/pyanaconda/.debug"
 FILES:${PN}-staticdev += "${PYTHON_SITEPACKAGES_DIR}/pyanaconda/_isys.a"
-FILES:${PN} = "/lib \
-               ${PYTHON_SITEPACKAGES_DIR}/log_picker \
+FILES:${PN} = "\
                ${PYTHON_SITEPACKAGES_DIR}/pyanaconda \
                ${bindir} \
                ${datadir}/anaconda \
                ${datadir}/applications \
                ${datadir}/glade \
+               ${datadir}/polkit-1 \
                ${datadir}/themes \
                ${libdir} \
                ${libexecdir} \
@@ -169,7 +168,6 @@ RDEPENDS:${PN} = "bash \
                   python3-core \
                   python3-coverage \
                   python3-dasbus \
-                  python3-dbus \
                   python3-langtable \
                   python3-libreport \
                   python3-meh \
