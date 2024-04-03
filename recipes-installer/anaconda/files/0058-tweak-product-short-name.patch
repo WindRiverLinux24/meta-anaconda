@@ -10,15 +10,19 @@ Upstream-Status: Inappropriate [oe specific]
 
 Signed-off-by: Hongxu Jia <hongxu.jia@windriver.com>
 
+Rebase for anaconda 39 on 20240304.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
 ---
- pyanaconda/core/constants.py | 4 +++-
+ pyanaconda/product.py | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/pyanaconda/core/constants.py b/pyanaconda/core/constants.py
-index 9c36d6014..b2854196b 100644
---- a/pyanaconda/core/constants.py
-+++ b/pyanaconda/core/constants.py
-@@ -38,7 +38,9 @@ isFinal = product.isFinal
+diff --git a/pyanaconda/product.py b/pyanaconda/product.py
+index 048f4c4bf9..2b680cc9c6 100644
+--- a/pyanaconda/product.py
++++ b/pyanaconda/product.py
+@@ -52,7 +52,9 @@ if productVersion == "development":
  
  # for use in device names, eg: "fedora", "rhel"
  shortProductName = productName.lower()          # pylint: disable=no-member
@@ -28,4 +32,4 @@ index 9c36d6014..b2854196b 100644
 +elif productName.count(" "):                    # pylint: disable=no-member
      shortProductName = ''.join(s[0] for s in shortProductName.split())
  
- # The default virtio port.
+ 

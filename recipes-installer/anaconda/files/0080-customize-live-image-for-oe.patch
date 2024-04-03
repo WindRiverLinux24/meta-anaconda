@@ -6,6 +6,11 @@
 Upstream-Status: Inappropriate [oe specific]
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+Rebase for anaconda 39 on 20240304.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
 ---
  pyanaconda/core/constants.py                       | 2 +-
  pyanaconda/modules/common/structures/live_image.py | 2 +-
@@ -13,20 +18,20 @@ Signed-off-by: Kai Kang <kai.kang@windriver.com>
  3 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/pyanaconda/core/constants.py b/pyanaconda/core/constants.py
-index 8b1feda637..26060387db 100644
+index 3b7756698f..873e840cf3 100644
 --- a/pyanaconda/core/constants.py
 +++ b/pyanaconda/core/constants.py
-@@ -50,7 +50,7 @@ MOUNT_DIR = "/media/realroot"
+@@ -49,7 +49,7 @@ MOUNT_DIR = "/media/realroot"
  DRACUT_ISODIR = "/run/install/source"
+ DRACUT_REPO_DIR = "/run/install/repo"
  ISO_DIR = MOUNT_DIR + "/isodir"
- INSTALL_TREE = "/media/source"
 -SOURCES_DIR = MOUNT_DIR + "/sources"
 +SOURCES_DIR = "/run/install/sources"
- BASE_REPO_NAME = "anaconda"
  
- # Get list of repo names witch should be used as base repo
+ # Names of repositories.
+ BASE_REPO_NAME = "anaconda"
 diff --git a/pyanaconda/modules/common/structures/live_image.py b/pyanaconda/modules/common/structures/live_image.py
-index b47e6252c..6b3d37862 100644
+index b47e6252c5..6b3d37862e 100644
 --- a/pyanaconda/modules/common/structures/live_image.py
 +++ b/pyanaconda/modules/common/structures/live_image.py
 @@ -30,7 +30,7 @@ class LiveImageConfigurationData(DBusData):
@@ -39,7 +44,7 @@ index b47e6252c..6b3d37862 100644
      @property
      def url(self) -> Str:
 diff --git a/pyanaconda/modules/payloads/source/cdrom/cdrom.py b/pyanaconda/modules/payloads/source/cdrom/cdrom.py
-index f1def7979..dd6c3fa13 100644
+index f1def79791..dd6c3fa13c 100644
 --- a/pyanaconda/modules/payloads/source/cdrom/cdrom.py
 +++ b/pyanaconda/modules/payloads/source/cdrom/cdrom.py
 @@ -93,7 +93,7 @@ class CdromSourceModule(PayloadSourceBase, MountingSourceMixin, RPMSourceMixin):

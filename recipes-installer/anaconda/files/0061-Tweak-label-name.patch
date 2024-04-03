@@ -21,16 +21,20 @@ Signed-off-by: Kai Kang <kai.kang@windriver.com>
 Rebase for anaconda 38 on 20231107.
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+Rebase for anaconda 39 on 20240304.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
 ---
  pyanaconda/product.py               | 4 ++++
- pyanaconda/ui/gui/spokes/welcome.py | 4 ++--
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ pyanaconda/ui/gui/spokes/welcome.py | 5 +++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/pyanaconda/product.py b/pyanaconda/product.py
-index b5e97d7ddc..57d79efd91 100644
+index 2b680cc9c6..748feaf98f 100644
 --- a/pyanaconda/product.py
 +++ b/pyanaconda/product.py
-@@ -56,6 +56,10 @@ productVersion = trim_product_version_for_ui(productVersion)
+@@ -72,6 +72,10 @@ productVersion = trim_product_version_for_ui(productVersion)
  
  
  def distributionText():
@@ -42,19 +46,20 @@ index b5e97d7ddc..57d79efd91 100644
          "productName": productName.upper(),
          "productVersion": productVersion.upper()
 diff --git a/pyanaconda/ui/gui/spokes/welcome.py b/pyanaconda/ui/gui/spokes/welcome.py
-index e96407163b..5d89212331 100644
+index a33934c634..42e6237ec7 100644
 --- a/pyanaconda/ui/gui/spokes/welcome.py
 +++ b/pyanaconda/ui/gui/spokes/welcome.py
-@@ -37,7 +37,7 @@ from pyanaconda.product import distributionText, isFinal, productName, productVe
+@@ -37,7 +37,8 @@ from pyanaconda.product import distributionText, isFinal, productName, productVe
  from pyanaconda import flags
  from pyanaconda.core.i18n import _
  from pyanaconda.core.util import ipmi_abort
--from pyanaconda.core.constants import DEFAULT_LANG, WINDOW_TITLE_TEXT
-+from pyanaconda.core.constants import DEFAULT_LANG, WINDOW_TITLE_TEXT, shortProductName
+-from pyanaconda.core.constants import DEFAULT_LANG, WINDOW_TITLE_TEXT, TIMEZONE_PRIORITY_LANGUAGE
++from pyanaconda.core.constants import DEFAULT_LANG, WINDOW_TITLE_TEXT, \
++    TIMEZONE_PRIORITY_LANGUAGE, shortProductName
  from pyanaconda.modules.common.constants.services import TIMEZONE, LOCALIZATION
  from pyanaconda.modules.common.util import is_module_available
  from pyanaconda.anaconda_loggers import get_module_logger
-@@ -203,7 +203,7 @@ class WelcomeLanguageSpoke(StandaloneSpoke, LangLocaleHandler):
+@@ -204,7 +205,7 @@ class WelcomeLanguageSpoke(StandaloneSpoke, LangLocaleHandler):
          welcomeLabel = self.builder.get_object("welcomeLabel")
  
          welcomeLabel.set_text(_("WELCOME TO %(name)s %(version)s.") %

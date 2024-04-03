@@ -27,10 +27,14 @@ Signed-off-by: Kai Kang <kai.kang@windriver.com>
 Rebase for anaconda 38 on 20231107.
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+Rebase for anaconda 39 on 20240304.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
 ---
  data/window-manager/config/Makefile.am | 6 +-----
- pyanaconda/display.py                  | 8 ++++----
- 2 files changed, 5 insertions(+), 9 deletions(-)
+ pyanaconda/display.py                  | 6 +++---
+ 2 files changed, 4 insertions(+), 8 deletions(-)
 
 diff --git a/data/window-manager/config/Makefile.am b/data/window-manager/config/Makefile.am
 index 90e71d9161..5d7a2b80e1 100644
@@ -50,7 +54,7 @@ index 90e71d9161..5d7a2b80e1 100644
  uninstall-local:
  	rm -f $(DESTDIR)$(schemadir)/*.xml
 diff --git a/pyanaconda/display.py b/pyanaconda/display.py
-index 5e14af16bc..d443500a3f 100644
+index a00431c6c0..2c41a6c4cc 100644
 --- a/pyanaconda/display.py
 +++ b/pyanaconda/display.py
 @@ -204,16 +204,16 @@ def do_startup_x11_actions():
@@ -63,9 +67,8 @@ index 5e14af16bc..d443500a3f 100644
      def x11_preexec():
          # to set GUI subprocess SIGINT handler
          signal.signal(signal.SIGINT, signal.SIG_IGN)
--        
+ 
 -    childproc = util.startProgram(["gnome-kiosk", "--display", ":1", "--sm-disable", "--x11"],
-+
 +    childproc = util.startProgram(["metacity", "--display", ":1", "--sm-disable"],
                                    env_add={'XDG_DATA_DIRS': xdg_data_dirs},
                                    preexec_fn=x11_preexec)

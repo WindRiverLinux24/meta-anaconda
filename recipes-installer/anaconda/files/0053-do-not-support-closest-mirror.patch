@@ -14,6 +14,10 @@ Signed-off-by: Kai Kang <kai.kang@windriver.com>
 Rebase for anaconda 37 on 20221020.
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+Rebase for anaconda 39 on 20240304.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
 ---
  pyanaconda/ui/gui/spokes/installation_source.glade | 1 -
  pyanaconda/ui/gui/spokes/installation_source.py    | 1 -
@@ -21,10 +25,10 @@ Signed-off-by: Kai Kang <kai.kang@windriver.com>
  3 files changed, 6 deletions(-)
 
 diff --git a/pyanaconda/ui/gui/spokes/installation_source.glade b/pyanaconda/ui/gui/spokes/installation_source.glade
-index 5b8c9a9049..523e4fd2cf 100644
+index a72bfc72e8..86ed437996 100644
 --- a/pyanaconda/ui/gui/spokes/installation_source.glade
 +++ b/pyanaconda/ui/gui/spokes/installation_source.glade
-@@ -346,7 +346,6 @@
+@@ -353,7 +353,6 @@
                                            <item id="https">https://</item>
                                            <item id="ftp">ftp://</item>
                                            <item id="nfs">nfs</item>
@@ -33,11 +37,11 @@ index 5b8c9a9049..523e4fd2cf 100644
                                          <signal name="changed" handler="on_protocol_changed" swapped="no"/>
                                        </object>
 diff --git a/pyanaconda/ui/gui/spokes/installation_source.py b/pyanaconda/ui/gui/spokes/installation_source.py
-index adca41e902..b8c41d7a2a 100644
+index 1bcb330614..c4a7932e32 100644
 --- a/pyanaconda/ui/gui/spokes/installation_source.py
 +++ b/pyanaconda/ui/gui/spokes/installation_source.py
-@@ -666,7 +666,6 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
-             combo.set_active(active_idx)
+@@ -613,7 +613,6 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
+             self._iso_combo.set_active(active_idx)
  
          # We defaults and if the method tells us something different later, we can change it.
 -        self._protocol_combo_box.set_active_id(PROTOCOL_MIRROR)
@@ -45,10 +49,10 @@ index adca41e902..b8c41d7a2a 100644
          self._updates_enabled = False
  
 diff --git a/pyanaconda/ui/tui/spokes/installation_source.py b/pyanaconda/ui/tui/spokes/installation_source.py
-index 0339f9a6ad..f5601d4bbe 100644
+index 663b7c3d9c..845e6b0104 100644
 --- a/pyanaconda/ui/tui/spokes/installation_source.py
 +++ b/pyanaconda/ui/tui/spokes/installation_source.py
-@@ -139,10 +139,6 @@ class SourceSpoke(NormalTUISpoke, SourceSwitchHandler):
+@@ -147,10 +147,6 @@ class SourceSpoke(NormalTUISpoke, SourceSwitchHandler):
          self._container = ListColumnContainer(1, columns_width=78, spacing=1)
  
          if args == self.SET_NETWORK_INSTALL_MODE:

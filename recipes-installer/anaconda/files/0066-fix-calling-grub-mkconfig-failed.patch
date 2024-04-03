@@ -16,6 +16,10 @@ Signed-off-by: Hongxu Jia <hongxu.jia@windriver.com>
 Rebase for anaconda 34.
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+Rebased for anaconda 39 on 20240403.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
 ---
  pyanaconda/modules/storage/bootloader/grub2.py | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
@@ -33,7 +37,7 @@ index 52116bcee..441f89e73 100644
 +                # Make sure the new system has a machine-id, it won't boot without it
 +                # (and nor will some of the subsequent commands)
 +                log.info("Generating machine ID")
-+                util.execInSysroot("systemd-machine-id-setup", [])
++                util.execWithRedirect("systemd-machine-id-setup", [], root=conf.target.system_root)
  
              with open(machine_id_path, "r") as fd:
                  machine_id = fd.readline().strip()

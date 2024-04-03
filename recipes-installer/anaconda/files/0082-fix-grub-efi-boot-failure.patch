@@ -10,17 +10,22 @@ Subject: [PATCH] fix grub efi boot failure
 Upstream-Status: Inappropriate [oe specific]
 
 Signed-off-by: Hongxu Jia <hongxu.jia@windriver.com>
+
+Rebase for anaconda 39 on 20240304.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
 ---
  pyanaconda/modules/storage/bootloader/efi.py | 15 ++++++++++-----
  1 file changed, 10 insertions(+), 5 deletions(-)
 
 diff --git a/pyanaconda/modules/storage/bootloader/efi.py b/pyanaconda/modules/storage/bootloader/efi.py
-index 07c264ba9..c7e33bbd0 100644
+index 305d9228c7..f6ca7327ca 100644
 --- a/pyanaconda/modules/storage/bootloader/efi.py
 +++ b/pyanaconda/modules/storage/bootloader/efi.py
-@@ -42,6 +42,16 @@ class EFIBase(object):
-     def _efi_config_dir(self):
-         return "efi/EFI/BOOT"
+@@ -55,6 +55,16 @@ class EFIBase(object):
+             value = '64'
+         return value
  
 +    @property
 +    def _config_dir(self):
@@ -35,7 +40,7 @@ index 07c264ba9..c7e33bbd0 100644
      def efibootmgr(self, *args, **kwargs):
          if not conf.target.is_hardware:
              log.info("Skipping efibootmgr for image/directory install.")
-@@ -211,11 +221,6 @@ class EFIGRUB(EFIBase, GRUB2):
+@@ -221,11 +231,6 @@ class EFIGRUB(EFIBase, GRUB2):
              if fs_uuid is None:
                  raise BootLoaderError("Could not get stage2 filesystem UUID")
  
