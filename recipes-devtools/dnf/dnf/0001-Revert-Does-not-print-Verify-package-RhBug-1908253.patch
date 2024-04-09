@@ -1,0 +1,29 @@
+Revert "Does not print Verify: package (RhBug:1908253)"
+
+This reverts commit b2acddd4f6fda369a7f2f1656a7cd646c3423f60.
+
+Invoke verify function is still required by anaconda, so add it back.
+
+Upstream-Status: Inappropriate [oe specific]
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+---
+ dnf/base.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dnf/base.py b/dnf/base.py
+index a6b35746..7ab81240 100644
+--- a/dnf/base.py
++++ b/dnf/base.py
+@@ -1179,7 +1179,7 @@ class Base(object):
+ 
+         # sync up what just happened versus what is in the rpmdb
+         if not self._ts.isTsFlagSet(rpm.RPMTRANS_FLAG_TEST):
+-            self._verify_transaction()
++            self._verify_transaction(cb.verify_tsi_package)
+ 
+         return tid
+ 
+-- 
+2.34.1
+
