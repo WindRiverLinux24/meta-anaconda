@@ -1,5 +1,5 @@
 Introduction
------------
+------------
 This layer provides an installation program based on
 OE platform. The installation program is anaconda from
 fedora, which is the installer of distribution Fedora,
@@ -7,7 +7,7 @@ RedHat and Centos.
 (https://fedoraproject.org/wiki/Anaconda)
 
 There are two builds required, one is target build,
-another is host build.
+the other is host build.
 
 The image/packages of target build is installed on the
 target hard disk as user requirements.
@@ -43,23 +43,23 @@ Maintainers: Hongxu Jia <jiahongxujia@163.com> |  <hongxu.jia@windriver.com>
              Kai Kang <kai.kang@windriver.com>
 
 Contributing
------------
+------------
 Contributions and patches can be sent to the Yocto Project mailing
-list: yocto@yoctoproject.org"
+list: yocto@yoctoproject.org
 
 When sending patches please take a look at the contribution guide available
-here: https://wiki.yoctoproject.org/wiki/Contribution_Guidelines
+here: https://docs.yoctoproject.org/dev/contributor-guide/submit-changes.html
 
 example:
 git send-email -1 -M --to yocto@yoctoproject.org  --subject-prefix=meta-anaconda][PATCH
 
 Limitation
------------
+----------
 1) Since OE use grub-efi to generate live image, the compatible host
    is i.86|x86_64
    (Set MACHINE = "qemux86-64|qemux86" in default build)
 
-2) The target installer based on fedora 26, so it requires:
+2) The target installer based on fedora 39, so it requires:
    - systemd as init manager
    - python3
    - dnf2/rpm4
@@ -67,37 +67,40 @@ Limitation
      in MACHINE_FEATURES
 
 Building the target installer
------------
+-----------------------------
 1. Summary
    The target installer is enabled by including this layer.
    There are two images in target installer, one is target
-   image which to be installed to target, another is installer image
-   which to do the installation.
+   image which to be installed to target, the other is installer
+   image which to do the installation.
 
    A target image requires specific components to be compatible with
    the installer. To install these components set
-   DISTRO_FEATURES:append = " anaconda-support" in local.conf
+
+   DISTRO_FEATURES:append = " anaconda-support"
+
+   in local.conf.
 
    For installer image, you are not supposed to change the 'DISTRO'
    setting in target build directory. It may work, but it's not
-   recommended. Instead we should recommend the user run a
-   oe-init-build-env and create a new build directory for the installer.
-   Set DISTRO = 'anaconda' in local.conf file.
+   recommended. Instead we should recommend user to run `source
+   oe-init-build-env` and create a new build directory for the installer.
+   Then set `DISTRO = 'anaconda'` in local.conf file.
 
    There are two kinds of installer builds: "Image Based Install" and
    "Package Based Install". The former is to install a prebuilt image,
-   the latter is to install RPM packages.
+   and the latter is to install RPM packages.
 
    For Image Based Install, set INSTALLER_TARGET_BUILD =
    '<target-build-image>' in local.conf to specify an .ext2, .ext3,
    or ext4 image file, then the installer will copy this image to the
    target.
 
-   For Package Based Install,  set INSTALLER_TARGET_BUILD =
+   For Package Based Install, set INSTALLER_TARGET_BUILD =
    '<target-build-topdir>' to specify the path to target build directory
-   that will supply RPMs, and INSTALLER_TARGET_IMAGE = '<target-image-pn>'
+   which will supply RPMs, and INSTALLER_TARGET_IMAGE = '<target-image-pn>'
    to specify the image recipe name, then the installer will install its
-   RPMs to the target;
+   RPMs to the target.
 
 2. Two main use cases
    2.1 Installer image with ext2, ext3 or ext4 image from the target
