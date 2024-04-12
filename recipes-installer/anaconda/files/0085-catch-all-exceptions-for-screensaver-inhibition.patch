@@ -1,0 +1,16 @@
+ pyanaconda/screensaver.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pyanaconda/screensaver.py b/pyanaconda/screensaver.py
+index dfa3191f04..e8d428ea86 100644
+--- a/pyanaconda/screensaver.py
++++ b/pyanaconda/screensaver.py
+@@ -94,7 +94,7 @@ def inhibit_screensaver():
+             )
+             session_proxy = SCREENSAVER.get_proxy()
+             inhibit_id = session_proxy.Inhibit("anaconda", "Installing")
+-    except DBusError as e:
++    except Exception as e:
+         log.warning("Unable to inhibit the screensaver: %s", e)
+ 
+ 

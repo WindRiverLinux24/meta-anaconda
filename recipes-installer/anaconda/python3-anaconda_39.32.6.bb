@@ -71,6 +71,7 @@ SRC_URI = "git://github.com/rhinstaller/anaconda.git;protocol=https;branch=fedor
            file://0082-fix-grub-efi-boot-failure.patch \
            file://0083-reset-default-autopart-type.patch \
            file://0084-conf-system-not-livecd.patch \
+           file://0085-catch-all-exceptions-for-screensaver-inhibition.patch \
            "
 
 SRCREV = "1a4aed721074ddcd84df88089024378c894ec65e"
