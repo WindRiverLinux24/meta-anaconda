@@ -38,7 +38,6 @@ SRC_URI = "git://github.com/rhinstaller/anaconda.git;protocol=https;branch=fedor
            file://0036-do-not-support-network-setting-for-now.patch \
            file://0038-support-to-get-kickstart-from-network.patch \
            file://0039-support-authentication-for-kickstart.patch \
-           file://0040-support-downloading-file-from-http-ftp-server-to-tar.patch \
            file://0042-support-initramfs-boot.patch \
            file://0044-fix-installed-system-boot-from-encrypt-fs-failed.patch \
            file://0045-installation-destination-disable-iSCSI-network-disks.patch \
