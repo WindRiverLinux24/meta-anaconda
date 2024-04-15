@@ -7,12 +7,17 @@ Signed-off-by: Kai Kang <kai.kang@windriver.com>
 Rebase for anaconda 37.
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+Add mount option 'noload' to resolve mount error for F39.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
 ---
- pyanaconda/modules/payloads/source/live_os/initialization.py | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ pyanaconda/modules/payloads/source/live_os/initialization.py | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
 
 diff --git a/pyanaconda/modules/payloads/source/live_os/initialization.py b/pyanaconda/modules/payloads/source/live_os/initialization.py
-index af885f42f3..116f868e07 100644
+index 50de78a087..02656e3da7 100644
 --- a/pyanaconda/modules/payloads/source/live_os/initialization.py
 +++ b/pyanaconda/modules/payloads/source/live_os/initialization.py
 @@ -49,10 +49,7 @@ class DetectLiveOSImageTask(Task):
@@ -27,3 +32,12 @@ index af885f42f3..116f868e07 100644
  
          if not block_device:
              raise SourceSetupError("No Live OS image found!")
+@@ -157,7 +154,7 @@ class SetUpLiveOSSourceTask(SetUpMountTask):
+                 device_path,
+                 self._target_mount,
+                 fstype="auto",
+-                options="ro"
++                options="ro,noload"
+             )
+         except OSError as e:
+             raise SourceSetupError(str(e)) from e
