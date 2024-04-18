@@ -1,0 +1,955 @@
+Backport patch to fix do_install issue caused by python 3.12.3. And
+remove section for pyanaconda/modules/storage/nvme/Makefile.am which
+does not exist now.
+
+Upstream-Status: Backport [https://github.com/rhinstaller/anaconda/commit/bf7c2a2]
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+From bf7c2a2471f72349d9671d68092f425faab332e5 Mon Sep 17 00:00:00 2001
+From: Katerina Koukiou <kkoukiou@redhat.com>
+Date: Wed, 17 Apr 2024 10:49:35 +0200
+Subject: [PATCH] The RPM tooling generates the compiled python so having
+ automake do it is redundant
+
+Resolves: rhbz#2275279
+---
+ pyanaconda/Makefile.am                                              | 4 ++--
+ pyanaconda/core/Makefile.am                                         | 2 +-
+ pyanaconda/core/configuration/Makefile.am                           | 2 +-
+ pyanaconda/core/kickstart/Makefile.am                               | 2 +-
+ pyanaconda/core/startup/Makefile.am                                 | 2 +-
+ pyanaconda/modules/Makefile.am                                      | 2 +-
+ pyanaconda/modules/boss/Makefile.am                                 | 2 +-
+ pyanaconda/modules/boss/install_manager/Makefile.am                 | 2 +-
+ pyanaconda/modules/boss/kickstart_manager/Makefile.am               | 2 +-
+ pyanaconda/modules/boss/module_manager/Makefile.am                  | 2 +-
+ pyanaconda/modules/common/Makefile.am                               | 2 +-
+ pyanaconda/modules/common/base/Makefile.am                          | 2 +-
+ pyanaconda/modules/common/constants/Makefile.am                     | 2 +-
+ pyanaconda/modules/common/errors/Makefile.am                        | 2 +-
+ pyanaconda/modules/common/structures/Makefile.am                    | 2 +-
+ pyanaconda/modules/common/task/Makefile.am                          | 2 +-
+ pyanaconda/modules/localization/Makefile.am                         | 2 +-
+ pyanaconda/modules/network/Makefile.am                              | 2 +-
+ pyanaconda/modules/network/firewall/Makefile.am                     | 2 +-
+ pyanaconda/modules/payloads/Makefile.am                             | 2 +-
+ pyanaconda/modules/payloads/base/Makefile.am                        | 2 +-
+ pyanaconda/modules/payloads/payload/Makefile.am                     | 2 +-
+ pyanaconda/modules/payloads/payload/dnf/Makefile.am                 | 2 +-
+ pyanaconda/modules/payloads/payload/live_image/Makefile.am          | 2 +-
+ pyanaconda/modules/payloads/payload/live_os/Makefile.am             | 2 +-
+ pyanaconda/modules/payloads/payload/rpm_ostree/Makefile.am          | 2 +-
+ pyanaconda/modules/payloads/source/Makefile.am                      | 2 +-
+ pyanaconda/modules/payloads/source/cdn/Makefile.am                  | 2 +-
+ pyanaconda/modules/payloads/source/cdrom/Makefile.am                | 2 +-
+ pyanaconda/modules/payloads/source/closest_mirror/Makefile.am       | 2 +-
+ pyanaconda/modules/payloads/source/flatpak/Makefile.am              | 2 +-
+ pyanaconda/modules/payloads/source/harddrive/Makefile.am            | 2 +-
+ pyanaconda/modules/payloads/source/hmc/Makefile.am                  | 2 +-
+ pyanaconda/modules/payloads/source/live_image/Makefile.am           | 2 +-
+ pyanaconda/modules/payloads/source/live_os/Makefile.am              | 2 +-
+ pyanaconda/modules/payloads/source/live_tar/Makefile.am             | 2 +-
+ pyanaconda/modules/payloads/source/nfs/Makefile.am                  | 2 +-
+ pyanaconda/modules/payloads/source/repo_files/Makefile.am           | 2 +-
+ pyanaconda/modules/payloads/source/repo_path/Makefile.am            | 2 +-
+ pyanaconda/modules/payloads/source/rpm_ostree/Makefile.am           | 2 +-
+ pyanaconda/modules/payloads/source/rpm_ostree_container/Makefile.am | 2 +-
+ pyanaconda/modules/payloads/source/url/Makefile.am                  | 2 +-
+ pyanaconda/modules/runtime/Makefile.am                              | 2 +-
+ pyanaconda/modules/runtime/dracut_commands/Makefile.am              | 2 +-
+ pyanaconda/modules/runtime/user_interface/Makefile.am               | 2 +-
+ pyanaconda/modules/security/Makefile.am                             | 2 +-
+ pyanaconda/modules/services/Makefile.am                             | 2 +-
+ pyanaconda/modules/storage/Makefile.am                              | 2 +-
+ pyanaconda/modules/storage/bootloader/Makefile.am                   | 2 +-
+ pyanaconda/modules/storage/checker/Makefile.am                      | 2 +-
+ pyanaconda/modules/storage/dasd/Makefile.am                         | 2 +-
+ pyanaconda/modules/storage/devicetree/Makefile.am                   | 2 +-
+ pyanaconda/modules/storage/disk_initialization/Makefile.am          | 2 +-
+ pyanaconda/modules/storage/disk_selection/Makefile.am               | 2 +-
+ pyanaconda/modules/storage/fcoe/Makefile.am                         | 2 +-
+ pyanaconda/modules/storage/iscsi/Makefile.am                        | 2 +-
+ pyanaconda/modules/storage/partitioning/Makefile.am                 | 2 +-
+ pyanaconda/modules/storage/partitioning/automatic/Makefile.am       | 2 +-
+ pyanaconda/modules/storage/partitioning/blivet/Makefile.am          | 2 +-
+ pyanaconda/modules/storage/partitioning/custom/Makefile.am          | 2 +-
+ pyanaconda/modules/storage/partitioning/interactive/Makefile.am     | 2 +-
+ pyanaconda/modules/storage/partitioning/manual/Makefile.am          | 2 +-
+ pyanaconda/modules/storage/snapshot/Makefile.am                     | 2 +-
+ pyanaconda/modules/storage/zfcp/Makefile.am                         | 2 +-
+ pyanaconda/modules/subscription/Makefile.am                         | 2 +-
+ pyanaconda/modules/timezone/Makefile.am                             | 2 +-
+ pyanaconda/modules/users/Makefile.am                                | 2 +-
+ pyanaconda/payload/Makefile.am                                      | 2 +-
+ pyanaconda/payload/dnf/Makefile.am                                  | 2 +-
+ pyanaconda/payload/live/Makefile.am                                 | 2 +-
+ pyanaconda/ui/lib/Makefile.am                                       | 2 +-
+ widgets/python/Makefile.am                                          | 2 +-
+ 72 files changed, 73 insertions(+), 73 deletions(-)
+
+diff --git a/pyanaconda/Makefile.am b/pyanaconda/Makefile.am
+index e7fe8673b6..22606bca29 100644
+--- a/pyanaconda/Makefile.am
++++ b/pyanaconda/Makefile.am
+@@ -25,5 +25,5 @@ anacondadir     = $(pkgpyexecdir)
+ 
+ # Filter version.py out of the distributed python files since it will
+ # be generated by the configure script
+-anaconda_PYTHON = $(filter-out %/version.py,$(wildcard $(srcdir)/*.py))
+-nodist_anaconda_PYTHON = $(builddir)/version.py
++dist_anaconda_DATA = $(filter-out %/version.py,$(wildcard $(srcdir)/*.py))
++nodist_anaconda_DATA = $(builddir)/version.py
+diff --git a/pyanaconda/core/Makefile.am b/pyanaconda/core/Makefile.am
+index 23a583a35e..4223a433d1 100644
+--- a/pyanaconda/core/Makefile.am
++++ b/pyanaconda/core/Makefile.am
+@@ -19,6 +19,6 @@ SUBDIRS = kickstart configuration startup
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ coredir = $(pkgpyexecdir)/core
+-core_PYTHON = $(srcdir)/*.py
++dist_core_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/core/configuration/Makefile.am b/pyanaconda/core/configuration/Makefile.am
+index 627dea2f7d..f5b4736b06 100644
+--- a/pyanaconda/core/configuration/Makefile.am
++++ b/pyanaconda/core/configuration/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ core_configdir = $(pkgpyexecdir)/core/configuration
+-core_config_PYTHON = $(srcdir)/*.py
++dist_core_config_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/core/kickstart/Makefile.am b/pyanaconda/core/kickstart/Makefile.am
+index 97d7d7d8c3..572751e1e5 100644
+--- a/pyanaconda/core/kickstart/Makefile.am
++++ b/pyanaconda/core/kickstart/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ core_kickstartdir = $(pkgpyexecdir)/core/kickstart
+-core_kickstart_PYTHON = $(srcdir)/*.py
++dist_core_kickstart_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/core/startup/Makefile.am b/pyanaconda/core/startup/Makefile.am
+index 79731f2d60..fca45efa2f 100644
+--- a/pyanaconda/core/startup/Makefile.am
++++ b/pyanaconda/core/startup/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ core_startupdir = $(pkgpyexecdir)/core/startup
+-core_startup_PYTHON = $(srcdir)/*.py
++dist_core_startup_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/Makefile.am b/pyanaconda/modules/Makefile.am
+index 33d6fff2c7..ee62919cea 100644
+--- a/pyanaconda/modules/Makefile.am
++++ b/pyanaconda/modules/Makefile.am
+@@ -19,6 +19,6 @@ SUBDIRS = common boss timezone network localization security users payloads stor
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ modulesdir = $(pkgpyexecdir)/modules
+-modules_PYTHON = $(srcdir)/*.py
++dist_modules_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/boss/Makefile.am b/pyanaconda/modules/boss/Makefile.am
+index f070dded45..8da58e8859 100644
+--- a/pyanaconda/modules/boss/Makefile.am
++++ b/pyanaconda/modules/boss/Makefile.am
+@@ -19,6 +19,6 @@ SUBDIRS = install_manager kickstart_manager module_manager
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ bossdir = $(pkgpyexecdir)/modules/boss
+-boss_PYTHON = $(srcdir)/*.py
++dist_boss_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/boss/install_manager/Makefile.am b/pyanaconda/modules/boss/install_manager/Makefile.am
+index 23e9e47408..0fb72a3792 100644
+--- a/pyanaconda/modules/boss/install_manager/Makefile.am
++++ b/pyanaconda/modules/boss/install_manager/Makefile.am
+@@ -17,6 +17,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ install_managerdir = $(pkgpyexecdir)/modules/boss/install_manager
+-install_manager_PYTHON = $(srcdir)/*.py
++dist_install_manager_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/boss/kickstart_manager/Makefile.am b/pyanaconda/modules/boss/kickstart_manager/Makefile.am
+index b0a11a8074..414a17cce5 100644
+--- a/pyanaconda/modules/boss/kickstart_manager/Makefile.am
++++ b/pyanaconda/modules/boss/kickstart_manager/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ kickstart_managerdir = $(pkgpyexecdir)/modules/boss/kickstart_manager
+-kickstart_manager_PYTHON = $(srcdir)/*.py
++dist_kickstart_manager_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/boss/module_manager/Makefile.am b/pyanaconda/modules/boss/module_manager/Makefile.am
+index 4bc7085618..60d4bf6c65 100644
+--- a/pyanaconda/modules/boss/module_manager/Makefile.am
++++ b/pyanaconda/modules/boss/module_manager/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ module_managerdir = $(pkgpyexecdir)/modules/boss/module_manager
+-module_manager_PYTHON = $(srcdir)/*.py
++dist_module_manager_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/common/Makefile.am b/pyanaconda/modules/common/Makefile.am
+index 88bb820206..616f58d57f 100644
+--- a/pyanaconda/modules/common/Makefile.am
++++ b/pyanaconda/modules/common/Makefile.am
+@@ -18,6 +18,6 @@ SUBDIRS = base task errors constants structures
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ modules_commondir = $(pkgpyexecdir)/modules/common
+-modules_common_PYTHON = $(srcdir)/*.py
++dist_modules_common_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/common/base/Makefile.am b/pyanaconda/modules/common/base/Makefile.am
+index 6344a902ca..9ef81b35b4 100644
+--- a/pyanaconda/modules/common/base/Makefile.am
++++ b/pyanaconda/modules/common/base/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ modules_basedir = $(pkgpyexecdir)/modules/common/base
+-modules_base_PYTHON = $(srcdir)/*.py
++dist_modules_base_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/common/constants/Makefile.am b/pyanaconda/modules/common/constants/Makefile.am
+index 24e07f96ed..21a8837d48 100644
+--- a/pyanaconda/modules/common/constants/Makefile.am
++++ b/pyanaconda/modules/common/constants/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ modules_constantsdir = $(pkgpyexecdir)/modules/common/constants
+-modules_constants_PYTHON = $(srcdir)/*.py
++dist_modules_constants_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/common/errors/Makefile.am b/pyanaconda/modules/common/errors/Makefile.am
+index 960f8fe577..c53b07c343 100644
+--- a/pyanaconda/modules/common/errors/Makefile.am
++++ b/pyanaconda/modules/common/errors/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ modules_errorsdir = $(pkgpyexecdir)/modules/common/errors
+-modules_errors_PYTHON = $(srcdir)/*.py
++dist_modules_errors_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/common/structures/Makefile.am b/pyanaconda/modules/common/structures/Makefile.am
+index 18bd59f668..6f905a3602 100644
+--- a/pyanaconda/modules/common/structures/Makefile.am
++++ b/pyanaconda/modules/common/structures/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ structures_commondir = $(pkgpyexecdir)/modules/common/structures
+-structures_common_PYTHON = $(srcdir)/*.py
++dist_structures_common_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/common/task/Makefile.am b/pyanaconda/modules/common/task/Makefile.am
+index 259c29f3c0..aeb913983e 100644
+--- a/pyanaconda/modules/common/task/Makefile.am
++++ b/pyanaconda/modules/common/task/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ modules_taskdir = $(pkgpyexecdir)/modules/common/task
+-modules_task_PYTHON = $(srcdir)/*.py
++dist_modules_task_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/localization/Makefile.am b/pyanaconda/modules/localization/Makefile.am
+index 5c06e0960f..b38a5ece51 100644
+--- a/pyanaconda/modules/localization/Makefile.am
++++ b/pyanaconda/modules/localization/Makefile.am
+@@ -15,6 +15,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ localizationdir = $(pkgpyexecdir)/modules/localization
+-localization_PYTHON = $(srcdir)/*.py
++dist_localization_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/network/Makefile.am b/pyanaconda/modules/network/Makefile.am
+index b4f91aea85..111a363b6f 100644
+--- a/pyanaconda/modules/network/Makefile.am
++++ b/pyanaconda/modules/network/Makefile.am
+@@ -21,6 +21,6 @@ SUBDIRS = firewall
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ 
+ networkdir = $(pkgpyexecdir)/modules/network
+-network_PYTHON = $(srcdir)/*.py
++dist_network_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/network/firewall/Makefile.am b/pyanaconda/modules/network/firewall/Makefile.am
+index 291396fa05..4b186b2132 100644
+--- a/pyanaconda/modules/network/firewall/Makefile.am
++++ b/pyanaconda/modules/network/firewall/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ firewall_moduledir = $(pkgpyexecdir)/modules/network/firewall
+-firewall_module_PYTHON = $(srcdir)/*.py
++dist_firewall_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/Makefile.am b/pyanaconda/modules/payloads/Makefile.am
+index 263cf64185..3e2628842e 100644
+--- a/pyanaconda/modules/payloads/Makefile.am
++++ b/pyanaconda/modules/payloads/Makefile.am
+@@ -18,6 +18,6 @@ SUBDIRS = base payload source
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/base/Makefile.am b/pyanaconda/modules/payloads/base/Makefile.am
+index a2c75b0ba9..5c2f5e832b 100644
+--- a/pyanaconda/modules/payloads/base/Makefile.am
++++ b/pyanaconda/modules/payloads/base/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/base
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/payload/Makefile.am b/pyanaconda/modules/payloads/payload/Makefile.am
+index 680b0cbc6b..5bc389bfac 100644
+--- a/pyanaconda/modules/payloads/payload/Makefile.am
++++ b/pyanaconda/modules/payloads/payload/Makefile.am
+@@ -18,6 +18,6 @@ SUBDIRS = dnf live_os live_image rpm_ostree
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ dnf_moduledir = $(pkgpyexecdir)/modules/payloads/payload
+-dnf_module_PYTHON = $(srcdir)/*.py
++dist_dnf_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/payload/dnf/Makefile.am b/pyanaconda/modules/payloads/payload/dnf/Makefile.am
+index 67669ad108..5c7902d3e1 100644
+--- a/pyanaconda/modules/payloads/payload/dnf/Makefile.am
++++ b/pyanaconda/modules/payloads/payload/dnf/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ dnf_moduledir = $(pkgpyexecdir)/modules/payloads/payload/dnf
+-dnf_module_PYTHON = $(srcdir)/*.py
++dist_dnf_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/payload/live_image/Makefile.am b/pyanaconda/modules/payloads/payload/live_image/Makefile.am
+index ec5b9e53f5..0b8b3a2228 100644
+--- a/pyanaconda/modules/payloads/payload/live_image/Makefile.am
++++ b/pyanaconda/modules/payloads/payload/live_image/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ dnf_moduledir = $(pkgpyexecdir)/modules/payloads/payload/live_image
+-dnf_module_PYTHON = $(srcdir)/*.py
++dist_dnf_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/payload/live_os/Makefile.am b/pyanaconda/modules/payloads/payload/live_os/Makefile.am
+index cfc52e41bc..63dbdac1b0 100644
+--- a/pyanaconda/modules/payloads/payload/live_os/Makefile.am
++++ b/pyanaconda/modules/payloads/payload/live_os/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ dnf_moduledir = $(pkgpyexecdir)/modules/payloads/payload/live_os
+-dnf_module_PYTHON = $(srcdir)/*.py
++dist_dnf_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/payload/rpm_ostree/Makefile.am b/pyanaconda/modules/payloads/payload/rpm_ostree/Makefile.am
+index 1737f7f01d..8968ae0391 100644
+--- a/pyanaconda/modules/payloads/payload/rpm_ostree/Makefile.am
++++ b/pyanaconda/modules/payloads/payload/rpm_ostree/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ ostree_moduledir = $(pkgpyexecdir)/modules/payloads/payload/rpm_ostree
+-ostree_module_PYTHON = $(srcdir)/*.py
++dist_ostree_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/Makefile.am b/pyanaconda/modules/payloads/source/Makefile.am
+index f04fe65bc0..31c70b1b79 100644
+--- a/pyanaconda/modules/payloads/source/Makefile.am
++++ b/pyanaconda/modules/payloads/source/Makefile.am
+@@ -19,6 +19,6 @@ SUBDIRS = hmc cdrom repo_files nfs url harddrive cdn closest_mirror rpm_ostree \
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/cdn/Makefile.am b/pyanaconda/modules/payloads/source/cdn/Makefile.am
+index 328053d7e4..0414fa9d53 100644
+--- a/pyanaconda/modules/payloads/source/cdn/Makefile.am
++++ b/pyanaconda/modules/payloads/source/cdn/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/cdn
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/cdrom/Makefile.am b/pyanaconda/modules/payloads/source/cdrom/Makefile.am
+index 1ba00d3cbb..581b091e4a 100644
+--- a/pyanaconda/modules/payloads/source/cdrom/Makefile.am
++++ b/pyanaconda/modules/payloads/source/cdrom/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/cdrom
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/closest_mirror/Makefile.am b/pyanaconda/modules/payloads/source/closest_mirror/Makefile.am
+index 3b451636f9..0cc1962240 100644
+--- a/pyanaconda/modules/payloads/source/closest_mirror/Makefile.am
++++ b/pyanaconda/modules/payloads/source/closest_mirror/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/closest_mirror
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/flatpak/Makefile.am b/pyanaconda/modules/payloads/source/flatpak/Makefile.am
+index cd209a4e64..3af61134d1 100644
+--- a/pyanaconda/modules/payloads/source/flatpak/Makefile.am
++++ b/pyanaconda/modules/payloads/source/flatpak/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ flatpak_moduledir = $(pkgpyexecdir)/modules/payloads/source/flatpak
+-flatpak_module_PYTHON = $(srcdir)/*.py
++dist_flatpak_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/harddrive/Makefile.am b/pyanaconda/modules/payloads/source/harddrive/Makefile.am
+index ec8f1ac1eb..5b116a6796 100644
+--- a/pyanaconda/modules/payloads/source/harddrive/Makefile.am
++++ b/pyanaconda/modules/payloads/source/harddrive/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/harddrive
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/hmc/Makefile.am b/pyanaconda/modules/payloads/source/hmc/Makefile.am
+index 581c87bfc0..488ea51d44 100644
+--- a/pyanaconda/modules/payloads/source/hmc/Makefile.am
++++ b/pyanaconda/modules/payloads/source/hmc/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/hmc
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/live_image/Makefile.am b/pyanaconda/modules/payloads/source/live_image/Makefile.am
+index 8c3251eb41..6dff5bb246 100644
+--- a/pyanaconda/modules/payloads/source/live_image/Makefile.am
++++ b/pyanaconda/modules/payloads/source/live_image/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/live_image
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/live_os/Makefile.am b/pyanaconda/modules/payloads/source/live_os/Makefile.am
+index 0f9104a1de..f62b144798 100644
+--- a/pyanaconda/modules/payloads/source/live_os/Makefile.am
++++ b/pyanaconda/modules/payloads/source/live_os/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/live_os
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/live_tar/Makefile.am b/pyanaconda/modules/payloads/source/live_tar/Makefile.am
+index dd96b1edb0..8ed5ba7ea9 100644
+--- a/pyanaconda/modules/payloads/source/live_tar/Makefile.am
++++ b/pyanaconda/modules/payloads/source/live_tar/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ source_tar_moduledir = $(pkgpyexecdir)/modules/payloads/source/live_tar
+-source_tar_module_PYTHON = $(srcdir)/*.py
++dist_source_tar_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/nfs/Makefile.am b/pyanaconda/modules/payloads/source/nfs/Makefile.am
+index 8572f68aef..7642ff36c4 100644
+--- a/pyanaconda/modules/payloads/source/nfs/Makefile.am
++++ b/pyanaconda/modules/payloads/source/nfs/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/nfs
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/repo_files/Makefile.am b/pyanaconda/modules/payloads/source/repo_files/Makefile.am
+index 80d72ed582..7dc6838885 100644
+--- a/pyanaconda/modules/payloads/source/repo_files/Makefile.am
++++ b/pyanaconda/modules/payloads/source/repo_files/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/repo_files
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/repo_path/Makefile.am b/pyanaconda/modules/payloads/source/repo_path/Makefile.am
+index 800de40c73..a6ba97f710 100644
+--- a/pyanaconda/modules/payloads/source/repo_path/Makefile.am
++++ b/pyanaconda/modules/payloads/source/repo_path/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/repo_path
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/rpm_ostree/Makefile.am b/pyanaconda/modules/payloads/source/rpm_ostree/Makefile.am
+index c76cee4d9b..9e9996774a 100644
+--- a/pyanaconda/modules/payloads/source/rpm_ostree/Makefile.am
++++ b/pyanaconda/modules/payloads/source/rpm_ostree/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/rpm_ostree
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/rpm_ostree_container/Makefile.am b/pyanaconda/modules/payloads/source/rpm_ostree_container/Makefile.am
+index a67efa1d66..2249db4e94 100644
+--- a/pyanaconda/modules/payloads/source/rpm_ostree_container/Makefile.am
++++ b/pyanaconda/modules/payloads/source/rpm_ostree_container/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/rpm_ostree_container
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/payloads/source/url/Makefile.am b/pyanaconda/modules/payloads/source/url/Makefile.am
+index a50201327d..edd3bac71b 100644
+--- a/pyanaconda/modules/payloads/source/url/Makefile.am
++++ b/pyanaconda/modules/payloads/source/url/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payload_moduledir = $(pkgpyexecdir)/modules/payloads/source/url
+-payload_module_PYTHON = $(srcdir)/*.py
++dist_payload_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/runtime/Makefile.am b/pyanaconda/modules/runtime/Makefile.am
+index 7b71e8eca0..5523d644dd 100644
+--- a/pyanaconda/modules/runtime/Makefile.am
++++ b/pyanaconda/modules/runtime/Makefile.am
+@@ -19,6 +19,6 @@ SUBDIRS = dracut_commands user_interface
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ runtimedir = $(pkgpyexecdir)/modules/runtime
+-runtime_PYTHON = $(srcdir)/*.py
++dist_runtime_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/runtime/dracut_commands/Makefile.am b/pyanaconda/modules/runtime/dracut_commands/Makefile.am
+index 36c8c74068..5ee8c75630 100644
+--- a/pyanaconda/modules/runtime/dracut_commands/Makefile.am
++++ b/pyanaconda/modules/runtime/dracut_commands/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ dracut_commandsdir = $(pkgpyexecdir)/modules/runtime/dracut_commands
+-dracut_commands_PYTHON = $(srcdir)/*.py
++dist_dracut_commands_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/runtime/user_interface/Makefile.am b/pyanaconda/modules/runtime/user_interface/Makefile.am
+index 00de8fc995..8e8afc50b5 100644
+--- a/pyanaconda/modules/runtime/user_interface/Makefile.am
++++ b/pyanaconda/modules/runtime/user_interface/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ user_interfacedir = $(pkgpyexecdir)/modules/runtime/user_interface
+-user_interface_PYTHON = $(srcdir)/*.py
++dist_user_interface_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/security/Makefile.am b/pyanaconda/modules/security/Makefile.am
+index 4d41747aa2..b141af08c7 100644
+--- a/pyanaconda/modules/security/Makefile.am
++++ b/pyanaconda/modules/security/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ securitydir = $(pkgpyexecdir)/modules/security
+-security_PYTHON = $(srcdir)/*.py
++dist_security_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/services/Makefile.am b/pyanaconda/modules/services/Makefile.am
+index 02b86a4167..3f69c2c6e7 100644
+--- a/pyanaconda/modules/services/Makefile.am
++++ b/pyanaconda/modules/services/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ servicesdir = $(pkgpyexecdir)/modules/services
+-services_PYTHON = $(srcdir)/*.py
++dist_services_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/Makefile.am b/pyanaconda/modules/storage/Makefile.am
+index 88b2b0a487..99a80d039e 100644
+--- a/pyanaconda/modules/storage/Makefile.am
++++ b/pyanaconda/modules/storage/Makefile.am
+@@ -19,6 +19,6 @@ SUBDIRS = disk_initialization disk_selection bootloader partitioning dasd zfcp f
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ storage_moduledir = $(pkgpyexecdir)/modules/storage
+-storage_module_PYTHON = $(srcdir)/*.py
++dist_storage_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/bootloader/Makefile.am b/pyanaconda/modules/storage/bootloader/Makefile.am
+index 4bec075782..39888fe4be 100644
+--- a/pyanaconda/modules/storage/bootloader/Makefile.am
++++ b/pyanaconda/modules/storage/bootloader/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ bootloader_moduledir = $(pkgpyexecdir)/modules/storage/bootloader
+-bootloader_module_PYTHON = $(srcdir)/*.py
++dist_bootloader_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/checker/Makefile.am b/pyanaconda/modules/storage/checker/Makefile.am
+index e06ba8ea49..b96800d36d 100644
+--- a/pyanaconda/modules/storage/checker/Makefile.am
++++ b/pyanaconda/modules/storage/checker/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ checker_moduledir = $(pkgpyexecdir)/modules/storage/checker
+-checker_module_PYTHON = $(srcdir)/*.py
++dist_checker_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/dasd/Makefile.am b/pyanaconda/modules/storage/dasd/Makefile.am
+index e2ab6b9731..61c19452b9 100644
+--- a/pyanaconda/modules/storage/dasd/Makefile.am
++++ b/pyanaconda/modules/storage/dasd/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ dasd_moduledir = $(pkgpyexecdir)/modules/storage/dasd
+-dasd_module_PYTHON = $(srcdir)/*.py
++dist_dasd_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/devicetree/Makefile.am b/pyanaconda/modules/storage/devicetree/Makefile.am
+index 4f98311fe7..b737b3e60e 100644
+--- a/pyanaconda/modules/storage/devicetree/Makefile.am
++++ b/pyanaconda/modules/storage/devicetree/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ devicetree_moduledir = $(pkgpyexecdir)/modules/storage/devicetree
+-devicetree_module_PYTHON = $(srcdir)/*.py
++dist_devicetree_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/disk_initialization/Makefile.am b/pyanaconda/modules/storage/disk_initialization/Makefile.am
+index 117c91875f..5e69f22d0b 100644
+--- a/pyanaconda/modules/storage/disk_initialization/Makefile.am
++++ b/pyanaconda/modules/storage/disk_initialization/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ disk_init_moduledir = $(pkgpyexecdir)/modules/storage/disk_initialization
+-disk_init_module_PYTHON = $(srcdir)/*.py
++dist_disk_init_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/disk_selection/Makefile.am b/pyanaconda/modules/storage/disk_selection/Makefile.am
+index e81d902162..efe3bd53fe 100644
+--- a/pyanaconda/modules/storage/disk_selection/Makefile.am
++++ b/pyanaconda/modules/storage/disk_selection/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ disk_select_moduledir = $(pkgpyexecdir)/modules/storage/disk_selection
+-disk_select_module_PYTHON = $(srcdir)/*.py
++dist_disk_select_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/fcoe/Makefile.am b/pyanaconda/modules/storage/fcoe/Makefile.am
+index daf5a3cfc8..e941dbd5bb 100644
+--- a/pyanaconda/modules/storage/fcoe/Makefile.am
++++ b/pyanaconda/modules/storage/fcoe/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ fcoe_moduledir = $(pkgpyexecdir)/modules/storage/fcoe
+-fcoe_module_PYTHON = $(srcdir)/*.py
++dist_fcoe_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/iscsi/Makefile.am b/pyanaconda/modules/storage/iscsi/Makefile.am
+index 7a465c6def..b52307d102 100644
+--- a/pyanaconda/modules/storage/iscsi/Makefile.am
++++ b/pyanaconda/modules/storage/iscsi/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ iscsi_moduledir = $(pkgpyexecdir)/modules/storage/iscsi
+-iscsi_module_PYTHON = $(srcdir)/*.py
++dist_iscsi_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/partitioning/Makefile.am b/pyanaconda/modules/storage/partitioning/Makefile.am
+index 7890e4fcbd..be971178c8 100644
+--- a/pyanaconda/modules/storage/partitioning/Makefile.am
++++ b/pyanaconda/modules/storage/partitioning/Makefile.am
+@@ -18,6 +18,6 @@ SUBDIRS = automatic blivet custom interactive manual
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ partitioning_moduledir = $(pkgpyexecdir)/modules/storage/partitioning
+-partitioning_module_PYTHON = $(srcdir)/*.py
++dist_partitioning_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/partitioning/automatic/Makefile.am b/pyanaconda/modules/storage/partitioning/automatic/Makefile.am
+index 38a6f55b8b..bd8455bd2f 100644
+--- a/pyanaconda/modules/storage/partitioning/automatic/Makefile.am
++++ b/pyanaconda/modules/storage/partitioning/automatic/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ automatic_moduledir = $(pkgpyexecdir)/modules/storage/partitioning/automatic
+-automatic_module_PYTHON = $(srcdir)/*.py
++dist_automatic_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/partitioning/blivet/Makefile.am b/pyanaconda/modules/storage/partitioning/blivet/Makefile.am
+index a50664fbc5..7a226ed281 100644
+--- a/pyanaconda/modules/storage/partitioning/blivet/Makefile.am
++++ b/pyanaconda/modules/storage/partitioning/blivet/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ blivet_moduledir = $(pkgpyexecdir)/modules/storage/partitioning/blivet
+-blivet_module_PYTHON = $(srcdir)/*.py
++dist_blivet_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/partitioning/custom/Makefile.am b/pyanaconda/modules/storage/partitioning/custom/Makefile.am
+index d6d4312015..2d19610ea4 100644
+--- a/pyanaconda/modules/storage/partitioning/custom/Makefile.am
++++ b/pyanaconda/modules/storage/partitioning/custom/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ custom_moduledir = $(pkgpyexecdir)/modules/storage/partitioning/custom
+-custom_module_PYTHON = $(srcdir)/*.py
++dist_custom_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/partitioning/interactive/Makefile.am b/pyanaconda/modules/storage/partitioning/interactive/Makefile.am
+index 773d8d8142..db5f5e52d7 100644
+--- a/pyanaconda/modules/storage/partitioning/interactive/Makefile.am
++++ b/pyanaconda/modules/storage/partitioning/interactive/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ interactive_moduledir = $(pkgpyexecdir)/modules/storage/partitioning/interactive
+-interactive_module_PYTHON = $(srcdir)/*.py
++dist_interactive_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/partitioning/manual/Makefile.am b/pyanaconda/modules/storage/partitioning/manual/Makefile.am
+index 622263dfed..f533bb1037 100644
+--- a/pyanaconda/modules/storage/partitioning/manual/Makefile.am
++++ b/pyanaconda/modules/storage/partitioning/manual/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ manual_moduledir = $(pkgpyexecdir)/modules/storage/partitioning/manual
+-manual_module_PYTHON = $(srcdir)/*.py
++dist_manual_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/snapshot/Makefile.am b/pyanaconda/modules/storage/snapshot/Makefile.am
+index 3fd9ec6117..0ff9a567ca 100644
+--- a/pyanaconda/modules/storage/snapshot/Makefile.am
++++ b/pyanaconda/modules/storage/snapshot/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ snapshot_moduledir = $(pkgpyexecdir)/modules/storage/snapshot
+-snapshot_module_PYTHON = $(srcdir)/*.py
++dist_snapshot_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/zfcp/Makefile.am b/pyanaconda/modules/storage/zfcp/Makefile.am
+index 9e2a1c9d02..57d5857fc8 100644
+--- a/pyanaconda/modules/storage/zfcp/Makefile.am
++++ b/pyanaconda/modules/storage/zfcp/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ zfcp_moduledir = $(pkgpyexecdir)/modules/storage/zfcp
+-zfcp_module_PYTHON = $(srcdir)/*.py
++dist_zfcp_module_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/subscription/Makefile.am b/pyanaconda/modules/subscription/Makefile.am
+index bd9d154c21..a92fff6073 100644
+--- a/pyanaconda/modules/subscription/Makefile.am
++++ b/pyanaconda/modules/subscription/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ subscriptiondir = $(pkgpyexecdir)/modules/subscription
+-subscription_PYTHON = $(srcdir)/*.py
++dist_subscription_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/timezone/Makefile.am b/pyanaconda/modules/timezone/Makefile.am
+index 7e7131b23e..cb03978368 100644
+--- a/pyanaconda/modules/timezone/Makefile.am
++++ b/pyanaconda/modules/timezone/Makefile.am
+@@ -17,6 +17,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ timezonedir = $(pkgpyexecdir)/modules/timezone
+-timezone_PYTHON = $(srcdir)/*.py
++dist_timezone_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/users/Makefile.am b/pyanaconda/modules/users/Makefile.am
+index 8bc60541d7..7c41aa33c5 100644
+--- a/pyanaconda/modules/users/Makefile.am
++++ b/pyanaconda/modules/users/Makefile.am
+@@ -16,6 +16,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ usersdir = $(pkgpyexecdir)/modules/users
+-users_PYTHON = $(srcdir)/*.py
++dist_users_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/payload/Makefile.am b/pyanaconda/payload/Makefile.am
+index 06c5fea1cb..4c387f95e5 100644
+--- a/pyanaconda/payload/Makefile.am
++++ b/pyanaconda/payload/Makefile.am
+@@ -19,6 +19,6 @@ SUBDIRS = dnf live
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payloaddir = $(pkgpyexecdir)/payload
+-payload_PYTHON = $(srcdir)/*.py
++dist_payload_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/payload/dnf/Makefile.am b/pyanaconda/payload/dnf/Makefile.am
+index 01849b1ce6..cd3eb8c268 100644
+--- a/pyanaconda/payload/dnf/Makefile.am
++++ b/pyanaconda/payload/dnf/Makefile.am
+@@ -17,6 +17,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payloaddir = $(pkgpyexecdir)/payload/dnf
+-payload_PYTHON = $(srcdir)/*.py
++dist_payload_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/payload/live/Makefile.am b/pyanaconda/payload/live/Makefile.am
+index 9e31adf994..a4bd98bc9f 100644
+--- a/pyanaconda/payload/live/Makefile.am
++++ b/pyanaconda/payload/live/Makefile.am
+@@ -17,6 +17,6 @@
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+ payloaddir = $(pkgpyexecdir)/payload/live
+-payload_PYTHON = $(srcdir)/*.py
++dist_payload_DATA = $(wildcard $(srcdir)/*.py)
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/ui/lib/Makefile.am b/pyanaconda/ui/lib/Makefile.am
+index 71e097061c..250b6edb95 100644
+--- a/pyanaconda/ui/lib/Makefile.am
++++ b/pyanaconda/ui/lib/Makefile.am
+@@ -17,4 +17,4 @@ MAINTAINERCLEANFILES = Makefile.in
+ 
+ pkgpyexecdir  = $(pyexecdir)/py$(PACKAGE_NAME)
+ commondir     = $(pkgpyexecdir)/ui/lib
+-common_PYTHON = $(srcdir)/*.py
++dist_common_DATA = $(wildcard $(srcdir)/*.py)
+diff --git a/widgets/python/Makefile.am b/widgets/python/Makefile.am
+index 8d96804677..f369ea0e17 100644
+--- a/widgets/python/Makefile.am
++++ b/widgets/python/Makefile.am
+@@ -18,6 +18,6 @@
+ #
+ 
+ overridesdir    = $(pyexecdir)/gi/overrides
+-dist_overrides_PYTHON = AnacondaWidgets.py
++dist_overrides_DATA = AnacondaWidgets.py
+ 
+ MAINTAINERCLEANFILES = Makefile.in
+-- 
+2.34.1
+
