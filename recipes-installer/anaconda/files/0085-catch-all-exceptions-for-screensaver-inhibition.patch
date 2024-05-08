@@ -1,3 +1,10 @@
+It succeeds to created dbus proxy somehow but fails to call the function
+Inhibit(). Catch all exceptions to skip the failure.
+
+Upstream-Status: Inappropriate [oe specific]
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+---
  pyanaconda/screensaver.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
