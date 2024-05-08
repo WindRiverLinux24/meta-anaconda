@@ -10,12 +10,31 @@ Do not display layout indicator neither.
 Upstream-Status: Inappropriate [oe specific]
 
 Signed-off-by: Hongxu Jia <hongxu.jia@windriver.com>
----
- widgets/src/BaseWindow.c | 2 --
- 1 file changed, 2 deletions(-)
 
+Disconnect F1 with event handler which triggers error since help button
+has been removed.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
+---
+ pyanaconda/ui/gui/__init__.py | 1 -
+ widgets/src/BaseWindow.c      | 2 --
+ 2 files changed, 3 deletions(-)
+
+diff --git a/pyanaconda/ui/gui/__init__.py b/pyanaconda/ui/gui/__init__.py
+index 80dbb8eddd..c5ec94b258 100644
+--- a/pyanaconda/ui/gui/__init__.py
++++ b/pyanaconda/ui/gui/__init__.py
+@@ -450,7 +450,6 @@ class MainWindow(Gtk.Window):
+         # Connect to mnemonics-visible to add the (F1) mnemonic to the button label
+         if self._mnemonic_signal:
+             self.disconnect(self._mnemonic_signal)
+-        self._mnemonic_signal = self.connect("notify::mnemonics-visible", self._on_mnemonics_visible_changed, child)
+ 
+         self._stack.set_visible_child(child.window)
+ 
 diff --git a/widgets/src/BaseWindow.c b/widgets/src/BaseWindow.c
-index 6a1e372..8d86cd9 100644
+index 669c046530..c0822f37a2 100644
 --- a/widgets/src/BaseWindow.c
 +++ b/widgets/src/BaseWindow.c
 @@ -415,8 +415,6 @@ G_GNUC_END_IGNORE_DEPRECATIONS
