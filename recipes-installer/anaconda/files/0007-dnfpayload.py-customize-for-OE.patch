@@ -38,17 +38,22 @@ Rebase for anaconda 39 on 20240327.
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
 
+Create link file /lib before install packages since command `depmod`
+creates it as a directory rather than a link file.
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+
 ---
  pyanaconda/modules/payloads/payload/dnf/dnf.py     |   6 +-
- .../modules/payloads/payload/dnf/dnf_manager.py    | 181 +++++++++++++++++----
+ .../modules/payloads/payload/dnf/dnf_manager.py    | 185 +++++++++++++++++----
  .../modules/payloads/payload/dnf/initialization.py |   4 +
  .../modules/payloads/payload/dnf/installation.py   |  75 ++++++++-
  .../modules/payloads/payload/dnf/requirements.py   |  21 +++
  .../payloads/payload/dnf/transaction_progress.py   |   9 +-
  pyanaconda/modules/payloads/payload/dnf/utils.py   |  10 --
- .../modules/payloads/payload/dnf/validation.py     |  83 ++++++++++
+ .../modules/payloads/payload/dnf/validation.py     |  83 +++++++++
  pyanaconda/payload/dnf/payload.py                  |   4 +-
- 9 files changed, 347 insertions(+), 46 deletions(-)
+ 9 files changed, 351 insertions(+), 46 deletions(-)
 
 diff --git a/pyanaconda/modules/payloads/payload/dnf/dnf.py b/pyanaconda/modules/payloads/payload/dnf/dnf.py
 index 9f7921de4d..133fb8dfdb 100644
@@ -75,7 +80,7 @@ index 9f7921de4d..133fb8dfdb 100644
                  dnf_manager=self.dnf_manager
              )
 diff --git a/pyanaconda/modules/payloads/payload/dnf/dnf_manager.py b/pyanaconda/modules/payloads/payload/dnf/dnf_manager.py
-index 4852fcdc9d..8256bd9e2b 100644
+index 4852fcdc9d..9ac606a09a 100644
 --- a/pyanaconda/modules/payloads/payload/dnf/dnf_manager.py
 +++ b/pyanaconda/modules/payloads/payload/dnf/dnf_manager.py
 @@ -21,6 +21,10 @@ import multiprocessing
@@ -159,11 +164,11 @@ index 4852fcdc9d..8256bd9e2b 100644
          :return: a string with the environment ID or None
          """
 -        env = self._get_environment(environment_name)
-+        log.info("%s %s, environment %s" % (self.__class__.__name__, inspect.stack()[0][3], environment_name))
- 
+-
 -        if not env:
 -            return None
--
++        log.info("%s %s, environment %s" % (self.__class__.__name__, inspect.stack()[0][3], environment_name))
+ 
 -        return env.id
 +        return environment_name
  
@@ -220,7 +225,19 @@ index 4852fcdc9d..8256bd9e2b 100644
          return data
  
      def configure_proxy(self, url):
-@@ -684,6 +682,16 @@ class DNFManager(object):
+@@ -674,6 +672,11 @@ class DNFManager(object):
+             args=(self._base, display)
+         )
+ 
++        # create symlink /lib for distro feature usrmerge before transaction
++        # start since command depmod will create /lib as a directory
++        if not os.path.lexists(os.path.join(conf.target.system_root, 'lib')):
++            os.symlink("usr/lib", os.path.join(conf.target.system_root, "lib"))
++
+         # Start the transaction.
+         log.debug("Starting the transaction process...")
+         process.start()
+@@ -684,6 +687,15 @@ class DNFManager(object):
  
              # Wait for the transaction to end.
              process.join()
@@ -232,12 +249,11 @@ index 4852fcdc9d..8256bd9e2b 100644
 +            for d in ('bin', 'sbin', 'lib', 'lib32', 'lib64'):
 +                if (not os.path.lexists(os.path.join(conf.target.system_root, d))
 +                    and os.path.exists(os.path.join(conf.target.system_root, 'usr', d))):
-+                    execWithCapture("ln", ["-rs", os.path.join('/usr', d), os.path.join('/', d)],
-+                                    root=conf.target.system_root)
++                    os.symlink(os.path.join('usr', d), os.path.join(conf.target.system_root, d))
          finally:
              # Kill the transaction after the timeout.
              process.join(timeout)
-@@ -1047,3 +1055,116 @@ class DNFManager(object):
+@@ -1047,3 +1060,116 @@ class DNFManager(object):
                  continue
  
          return ""
