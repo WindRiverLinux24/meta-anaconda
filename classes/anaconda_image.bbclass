@@ -15,7 +15,7 @@ INSTBUGURL  ?= "http://www.windriver.com/"
 #       but not "?=" since this is not configurable.
 INSTALLER_CONFDIR = "${IMAGE_ROOTFS}/installer-config"
 KICKSTART_FILE ?= ""
-WRL_INSTALLER_CONF ?= ""
+INSTALLER_CONF ?= ""
 
 build_iso:prepend() {
 	install -d ${ISODIR}
@@ -28,7 +28,7 @@ build_iso:append() {
 	implantisomd5 ${IMGDEPLOYDIR}/${IMAGE_NAME}.iso
 }
 
-# Check WRL_INSTALLER_CONF and copy it to
+# Check INSTALLER_CONF and copy it to
 # ${IMAGE_ROOTFS}/.buildstamp.$prj_name when exists
 wrl_installer_copy_buildstamp() {
     prj_name=$1
@@ -37,7 +37,7 @@ wrl_installer_copy_buildstamp() {
         bbnote "Using $buildstamp as the buildstamp"
         cp $buildstamp ${IMAGE_ROOTFS}/.buildstamp.$prj_name
     else
-        bbfatal "Can't find WRL_INSTALLER_CONF: $buildstamp"
+        bbfatal "Can't find INSTALLER_CONF: $buildstamp"
     fi
 }
 
@@ -248,8 +248,8 @@ _EOF
         prj_name="$prj_name-$counter"
 
 	    # Generate .buildstamp
-	    if [ -n "${WRL_INSTALLER_CONF}" ]; then
-	        installer_conf="`echo ${WRL_INSTALLER_CONF} | awk '{print $'"$counter"'}'`"
+	    if [ -n "${INSTALLER_CONF}" ]; then
+	        installer_conf="`echo ${INSTALLER_CONF} | awk '{print $'"$counter"'}'`"
 	        wrl_installer_copy_buildstamp $prj_name $installer_conf
 	    else
 	        cat >${IMAGE_ROOTFS}/.buildstamp.$prj_name <<_EOF
@@ -354,14 +354,14 @@ python __anonymous() {
                 errmsg += "But INSTALLER_TARGET_IMAGE has %s build images: %s\n" % (len(target_images.split()), target_images)
                 raise bb.parse.SkipPackage(errmsg)
 
-        # The count of INSTALLER_TARGET_BUILD and WRL_INSTALLER_CONF must match when set.
-        wrlinstaller_confs = d.getVar('WRL_INSTALLER_CONF')
+        # The count of INSTALLER_TARGET_BUILD and INSTALLER_CONF must match when set.
+        wrlinstaller_confs = d.getVar('INSTALLER_CONF')
         if wrlinstaller_confs:
             if len(wrlinstaller_confs.split()) != len(target_builds.split()):
-                raise bb.parse.SkipPackage("The count of INSTALLER_TARGET_BUILD and WRL_INSTALLER_CONF not match!")
+                raise bb.parse.SkipPackage("The count of INSTALLER_TARGET_BUILD and INSTALLER_CONF not match!")
             for wrlinstaller_conf in wrlinstaller_confs.split():
                 if not os.path.exists(wrlinstaller_conf):
-                    raise bb.parse.SkipPackage("The installer conf %s in WRL_INSTALLER_CONF doesn't exist!" % wrlinstaller_conf)
+                    raise bb.parse.SkipPackage("The installer conf %s in INSTALLER_CONF doesn't exist!" % wrlinstaller_conf)
 
         # The count of INSTALLER_TARGET_BUILD and KICKSTART_FILE must match when set.
         kickstart_files = d.getVar('KICKSTART_FILE')
