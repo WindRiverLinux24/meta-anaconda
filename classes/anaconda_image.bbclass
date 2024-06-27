@@ -1,5 +1,8 @@
 RPM_POSTPROCESS_COMMANDS:append = "wrl_installer;"
-do_rootfs[vardeps] += "INSTALLER_TARGET_BUILD INSTALLER_TARGET_IMAGE"
+do_rootfs[vardeps] += "INSTALLER_CONF \
+                       INSTALLER_TARGET_BUILD \
+                       INSTALLER_TARGET_IMAGE \
+                       "
 
 # fail to start metacity if default target is graphical.target
 SYSTEMD_DEFAULT_TARGET = "multi-user.target"
