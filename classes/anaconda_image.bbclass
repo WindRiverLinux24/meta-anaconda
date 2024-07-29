@@ -2,6 +2,7 @@ RPM_POSTPROCESS_COMMANDS:append = "wrl_installer;"
 do_rootfs[vardeps] += "INSTALLER_CONF \
                        INSTALLER_TARGET_BUILD \
                        INSTALLER_TARGET_IMAGE \
+                       KICKSTART_FILE \
                        "
 
 # fail to start metacity if default target is graphical.target
