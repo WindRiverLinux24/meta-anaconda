@@ -29,6 +29,7 @@ RDEPENDS:${PN} = " \
     btrfs-tools \
     grub \
     grub-efi \
+    chrony \
 "
 
 COMPATIBLE_HOST = '(x86_64.*|i.86.*)-(linux.*|freebsd.*)'
