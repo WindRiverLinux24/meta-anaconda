@@ -1,24 +1,30 @@
-Though anaconda is booted with option `--method=livecd`, it does NOT boot a
-real live cd environment. Set it with False for oe.
+Though anaconda is booted with option `--liveinst`, it does
+ NOT boot a real live cd environment. Set it to BOOT_ISO for oe.
 
 Upstream-Status: Inappropriate [oe specific]
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
 
+Signed-off-by: Hongxu Jia <hongxu.jia@windriver.com>
 ---
- pyanaconda/core/configuration/system.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ pyanaconda/core/configuration/anaconda.py | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/pyanaconda/core/configuration/system.py b/pyanaconda/core/configuration/system.py
-index 3e539dbed1..1716ea1a0e 100644
---- a/pyanaconda/core/configuration/system.py
-+++ b/pyanaconda/core/configuration/system.py
-@@ -48,7 +48,7 @@ class SystemSection(Section):
-     @property
-     def _is_live_os(self):
-         """Are we running in the live OS?"""
--        return self._type is SystemType.LIVE_OS
-+        return False
+diff --git a/pyanaconda/core/configuration/anaconda.py b/pyanaconda/core/configuration/anaconda.py
+index 4e47e9c..ad1c4eb 100644
+--- a/pyanaconda/core/configuration/anaconda.py
++++ b/pyanaconda/core/configuration/anaconda.py
+@@ -364,9 +364,7 @@ class AnacondaConfiguration(Configuration):
+         self.security._set_option("selinux", opts.selinux)
  
-     @property
-     def _is_booted_os(self):
+         # Set the type of the installation system.
+-        if opts.liveinst:
+-            self.system._set_option("type", SystemType.LIVE_OS.value)
+-        elif opts.images or opts.dirinstall:
++        if opts.images or opts.dirinstall:
+             self.system._set_option("type", SystemType.UNKNOWN.value)
+         else:
+             self.system._set_option("type", SystemType.BOOT_ISO.value)
+-- 
+2.27.0
+
