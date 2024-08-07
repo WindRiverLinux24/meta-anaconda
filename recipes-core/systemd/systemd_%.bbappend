@@ -4,6 +4,7 @@ SRC_URI:append:anaconda = " \
 "
 
 PACKAGECONFIG:remove:anaconda = "timesyncd"
+PACKAGECONFIG:remove = "${@bb.utils.contains('DISTRO_FEATURES', 'anaconda-support', 'timesyncd', '', d)}"
 
 do_install:append:anaconda() {
     # Explicitly enable tty2
