@@ -1,0 +1,2402 @@
+From 607aebec25d87aa2e2f290f8cd80aad0e7af8a21 Mon Sep 17 00:00:00 2001
+From: Vendula Poncova <vponcova@redhat.com>
+Date: Tue, 28 Nov 2023 13:31:11 +0100
+Subject: [PATCH] storage: Remove support for NVDIMM namespaces
+
+All additional support for NVDIMM is being deprecated and removed, especially
+the support for the namespace reconfiguration. However, namespaces configured
+in the block/storage mode can be still used for installation.
+
+The `nvdimm` kickstart command is deprecated and will be removed in future
+releases.
+
+Resolves: #INSTALLER-3766
+
+Backport and rebase patch to work with blivet 2.9, and drop the
+modification for
+
+* docs/release-notes/remove-nvdimm-support.rst
+* pyanaconda/core/kickstart/commands.py
+
+Upstream-Status: Backport [https://github.com/rhinstaller/anaconda/commit/607aebe]
+
+Signed-off-by: Kai Kang <kai.kang@windriver.com>
+---
+ anaconda.py                                   |   4 -
+ anaconda.spec.in                              |   2 +-
+ configure.ac                                  |   1 -
+ .../modules/common/constants/objects.py       |   5 -
+ .../modules/common/structures/storage.py      |   5 -
+ pyanaconda/modules/storage/Makefile.am        |   2 +-
+ .../modules/storage/devicetree/viewer.py      |   8 -
+ pyanaconda/modules/storage/kickstart.py       |  35 +-
+ pyanaconda/modules/storage/nvdimm/Makefile.am |  21 -
+ pyanaconda/modules/storage/nvdimm/__init__.py |  20 -
+ pyanaconda/modules/storage/nvdimm/nvdimm.py   | 234 ---------
+ .../storage/nvdimm/nvdimm_interface.py        |  59 ---
+ .../modules/storage/nvdimm/reconfigure.py     |  59 ---
+ pyanaconda/modules/storage/storage.py         |   4 -
+ .../ui/gui/spokes/advanced_storage.glade      | 308 -----------
+ pyanaconda/ui/gui/spokes/advanced_storage.py  |  78 +--
+ .../ui/gui/spokes/advstorage/nvdimm.glade     | 363 -------------
+ pyanaconda/ui/gui/spokes/advstorage/nvdimm.py | 175 -------
+ pyanaconda/ui/gui/spokes/storage.py           |   4 -
+ pyanaconda/ui/lib/storage.py                  |  23 +-
+ .../storage/test_module_device_tree.py        |  22 +-
+ .../modules/storage/test_module_nvdimm.py     | 481 ------------------
+ .../modules/storage/test_module_storage.py    |  66 +--
+ 23 files changed, 9 insertions(+), 1970 deletions(-)
+ delete mode 100644 pyanaconda/modules/storage/nvdimm/Makefile.am
+ delete mode 100644 pyanaconda/modules/storage/nvdimm/__init__.py
+ delete mode 100644 pyanaconda/modules/storage/nvdimm/nvdimm.py
+ delete mode 100644 pyanaconda/modules/storage/nvdimm/nvdimm_interface.py
+ delete mode 100644 pyanaconda/modules/storage/nvdimm/reconfigure.py
+ delete mode 100644 pyanaconda/ui/gui/spokes/advstorage/nvdimm.glade
+ delete mode 100644 pyanaconda/ui/gui/spokes/advstorage/nvdimm.py
+ delete mode 100644 tests/unit_tests/pyanaconda_tests/modules/storage/test_module_nvdimm.py
+
+diff --git a/anaconda.py b/anaconda.py
+index a75f3b9..7b4b37a 100755
+--- a/anaconda.py
++++ b/anaconda.py
+@@ -483,10 +483,6 @@ if __name__ == "__main__":
+     from pyanaconda.ui.lib.storage import ignore_oemdrv_disks
+     ignore_oemdrv_disks()
+ 
+-    # Ignore nvdimm devices.
+-    from pyanaconda.ui.lib.storage import ignore_nvdimm_blockdevs
+-    ignore_nvdimm_blockdevs()
+-
+     # Specify protected devices.
+     from pyanaconda.modules.common.constants.services import STORAGE
+ 
+diff --git a/anaconda.spec.in b/anaconda.spec.in
+index 17a44d6..5cdfc88 100644
+--- a/anaconda.spec.in
++++ b/anaconda.spec.in
+@@ -39,7 +39,7 @@ Source0: https://github.com/rhinstaller/%{name}/releases/download/%{name}-%{vers
+ %define libxklavierver 5.4
+ %define mehver 0.23-1
+ %define nmver 1.0
+-%define pykickstartver 3.47-1
++%define pykickstartver 3.51-1
+ %define pypartedver 2.5-2
+ %define pythonblivetver 1:3.8.1-1
+ %define rpmver 4.15.0
+diff --git a/configure.ac b/configure.ac
+index 51f477a..d1179e4 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -186,7 +186,6 @@ AC_CONFIG_FILES([Makefile
+                  pyanaconda/modules/storage/disk_selection/Makefile
+                  pyanaconda/modules/storage/fcoe/Makefile
+                  pyanaconda/modules/storage/iscsi/Makefile
+-                 pyanaconda/modules/storage/nvdimm/Makefile
+                  pyanaconda/modules/storage/partitioning/Makefile
+                  pyanaconda/modules/storage/partitioning/automatic/Makefile
+                  pyanaconda/modules/storage/partitioning/blivet/Makefile
+diff --git a/pyanaconda/modules/common/constants/objects.py b/pyanaconda/modules/common/constants/objects.py
+index 46cab32..6ca4fbc 100644
+--- a/pyanaconda/modules/common/constants/objects.py
++++ b/pyanaconda/modules/common/constants/objects.py
+@@ -89,11 +89,6 @@ ISCSI = DBusObjectIdentifier(
+     basename="iSCSI"
+ )
+ 
+-NVDIMM = DBusObjectIdentifier(
+-    namespace=STORAGE_NAMESPACE,
+-    basename="NVDIMM"
+-)
+-
+ SNAPSHOT = DBusObjectIdentifier(
+     namespace=STORAGE_NAMESPACE,
+     basename="Snapshot"
+diff --git a/pyanaconda/modules/common/structures/storage.py b/pyanaconda/modules/common/structures/storage.py
+index 3a76448..8f71b31 100644
+--- a/pyanaconda/modules/common/structures/storage.py
++++ b/pyanaconda/modules/common/structures/storage.py
+@@ -168,11 +168,6 @@ class DeviceData(DBusData):
+             target
+             path-id
+ 
+-        Attributes for NVDIMM:
+-            mode
+-            namespace
+-            path-id
+-
+         Attributes for ZFCP:
+             fcp-lun
+             wwpn
+diff --git a/pyanaconda/modules/storage/Makefile.am b/pyanaconda/modules/storage/Makefile.am
+index 99a80d0..5b4610a 100644
+--- a/pyanaconda/modules/storage/Makefile.am
++++ b/pyanaconda/modules/storage/Makefile.am
+@@ -14,7 +14,7 @@
+ # You should have received a copy of the GNU Lesser General Public License
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+-SUBDIRS = disk_initialization disk_selection bootloader partitioning dasd zfcp fcoe nvdimm \
++SUBDIRS = disk_initialization disk_selection bootloader partitioning dasd zfcp fcoe \
+     snapshot devicetree checker iscsi
+ 
+ pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+diff --git a/pyanaconda/modules/storage/devicetree/viewer.py b/pyanaconda/modules/storage/devicetree/viewer.py
+index de509e7..1ed95df 100644
+--- a/pyanaconda/modules/storage/devicetree/viewer.py
++++ b/pyanaconda/modules/storage/devicetree/viewer.py
+@@ -102,8 +102,6 @@ class DeviceTreeViewer(ABC):
+             self._set_device_data_fcoe(device, data)
+         elif device.type == "iscsi":
+             self._set_device_data_iscsi(device, data)
+-        elif device.type == "nvdimm":
+-            self._set_device_data_nvdimm(device, data)
+         elif device.type == "zfcp":
+             self._set_device_data_zfcp(device, data)
+ 
+@@ -149,12 +147,6 @@ class DeviceTreeViewer(ABC):
+         data.attrs["target"] = self._get_attribute(device, "target")
+         data.attrs["path-id"] = self._get_attribute(device, "id_path")
+ 
+-    def _set_device_data_nvdimm(self, device, data):
+-        """Set data for an NVDIMM device."""
+-        data.attrs["mode"] = self._get_attribute(device, "mode")
+-        data.attrs["namespace"] = self._get_attribute(device, "devname")
+-        data.attrs["path-id"] = self._get_attribute(device, "id_path")
+-
+     def _set_device_data_zfcp(self, device, data):
+         """Set data for a ZFCP device."""
+         data.attrs["fcp-lun"] = self._get_attribute(device, "fcp_lun")
+diff --git a/pyanaconda/modules/storage/kickstart.py b/pyanaconda/modules/storage/kickstart.py
+index 0f33377..c252f26 100644
+--- a/pyanaconda/modules/storage/kickstart.py
++++ b/pyanaconda/modules/storage/kickstart.py
+@@ -19,11 +19,10 @@
+ #
+ from blivet.fcoe import fcoe
+ from blivet.iscsi import iscsi
+-from blivet.static_data import nvdimm
+ from blivet.zfcp import zfcp
+ from blivet.formats import get_format
+ from blivet.formats.disklabel import DiskLabel
+-from pykickstart.constants import CLEARPART_TYPE_NONE, NVDIMM_ACTION_RECONFIGURE, NVDIMM_ACTION_USE
++from pykickstart.constants import CLEARPART_TYPE_NONE
+ from pykickstart.errors import KickstartParseError
+ 
+ from pyanaconda.network import get_supported_devices, wait_for_network_devices
+@@ -258,36 +257,6 @@ class LogVol(COMMANDS.LogVol):
+ 
+         return retval
+ 
+-class Nvdimm(COMMANDS.Nvdimm):
+-    """The nvdimm kickstart command."""
+-
+-    def parse(self, args):
+-        action = super().parse(args)
+-
+-        if action.action == NVDIMM_ACTION_RECONFIGURE:
+-            if action.namespace not in nvdimm.namespaces:
+-                raise KickstartParseError(_("Namespace \"{}\" given in nvdimm command was not "
+-                                            "found.").format(action.namespace), lineno=self.lineno)
+-
+-            log.info("Reconfiguring the namespace %s to %s mode", action.namespace, action.mode)
+-            nvdimm.reconfigure_namespace(
+-                action.namespace,
+-                action.mode,
+-                sector_size=action.sectorsize
+-            )
+-
+-        elif action.action == NVDIMM_ACTION_USE:
+-            if action.namespace and action.namespace not in nvdimm.namespaces:
+-                raise KickstartParseError(_("Namespace \"{}\" given in nvdimm command was not "
+-                                            "found.").format(action.namespace), lineno=self.lineno)
+-
+-            devs = action.blockdevs
+-            action.blockdevs = get_device_names(devs, disks_only=True, lineno=self.lineno,
+-                                                msg=_("Disk \"{}\" given in nvdimm command does "
+-                                                      "not exist."))
+-
+-        return action
+-
+ 
+ class Partition(COMMANDS.Partition):
+     def parse(self, args):
+@@ -350,7 +319,7 @@ class StorageKickstartSpecification(KickstartSpecification):
+         "iscsiname": IscsiName,
+         "logvol": LogVol,
+         "mount": COMMANDS.Mount,
+-        "nvdimm": Nvdimm,
++        "nvdimm": COMMANDS.Nvdimm,
+         "part": Partition,
+         "partition": Partition,
+         "raid": Raid,
+diff --git a/pyanaconda/modules/storage/nvdimm/Makefile.am b/pyanaconda/modules/storage/nvdimm/Makefile.am
+deleted file mode 100644
+index da50638..0000000
+--- a/pyanaconda/modules/storage/nvdimm/Makefile.am
++++ /dev/null
+@@ -1,21 +0,0 @@
+-#
+-# Copyright (C) 2019  Red Hat, Inc.
+-#
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU Lesser General Public License as published
+-# by the Free Software Foundation; either version 2.1 of the License, or
+-# (at your option) any later version.
+-#
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-# GNU Lesser General Public License for more details.
+-#
+-# You should have received a copy of the GNU Lesser General Public License
+-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-
+-pkgpyexecdir = $(pyexecdir)/py$(PACKAGE_NAME)
+-nvdimm_moduledir = $(pkgpyexecdir)/modules/storage/nvdimm
+-nvdimm_module_PYTHON = $(srcdir)/*.py
+-
+-MAINTAINERCLEANFILES = Makefile.in
+diff --git a/pyanaconda/modules/storage/nvdimm/__init__.py b/pyanaconda/modules/storage/nvdimm/__init__.py
+deleted file mode 100644
+index 1efa6f4..0000000
+--- a/pyanaconda/modules/storage/nvdimm/__init__.py
++++ /dev/null
+@@ -1,20 +0,0 @@
+-#
+-# Copyright (C) 2019 Red Hat, Inc.
+-#
+-# This copyrighted material is made available to anyone wishing to use,
+-# modify, copy, or redistribute it subject to the terms and conditions of
+-# the GNU General Public License v.2, or (at your option) any later version.
+-# This program is distributed in the hope that it will be useful, but WITHOUT
+-# ANY WARRANTY expressed or implied, including the implied warranties of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+-# Public License for more details.  You should have received a copy of the
+-# GNU General Public License along with this program; if not, write to the
+-# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+-# 02110-1301, USA.  Any Red Hat trademarks that are incorporated in the
+-# source code or documentation are not subject to the GNU General Public
+-# License and may only be used or replicated with the express permission of
+-# Red Hat, Inc.
+-#
+-from pyanaconda.modules.storage.nvdimm.nvdimm import NVDIMMModule
+-
+-__all__ = ["NVDIMMModule"]
+diff --git a/pyanaconda/modules/storage/nvdimm/nvdimm.py b/pyanaconda/modules/storage/nvdimm/nvdimm.py
+deleted file mode 100644
+index 7da2309..0000000
+--- a/pyanaconda/modules/storage/nvdimm/nvdimm.py
++++ /dev/null
+@@ -1,234 +0,0 @@
+-#
+-# NVDIMM module
+-#
+-# Copyright (C) 2019 Red Hat, Inc.
+-#
+-# This copyrighted material is made available to anyone wishing to use,
+-# modify, copy, or redistribute it subject to the terms and conditions of
+-# the GNU General Public License v.2, or (at your option) any later version.
+-# This program is distributed in the hope that it will be useful, but WITHOUT
+-# ANY WARRANTY expressed or implied, including the implied warranties of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+-# Public License for more details.  You should have received a copy of the
+-# GNU General Public License along with this program; if not, write to the
+-# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+-# 02110-1301, USA.  Any Red Hat trademarks that are incorporated in the
+-# source code or documentation are not subject to the GNU General Public
+-# License and may only be used or replicated with the express permission of
+-# Red Hat, Inc.
+-#
+-from blivet import blockdev, udev
+-from blivet.devices import NVDIMMNamespaceDevice
+-from blivet.static_data import nvdimm
+-
+-from pykickstart.constants import NVDIMM_ACTION_RECONFIGURE, NVDIMM_ACTION_USE
+-
+-from pyanaconda.core.dbus import DBus
+-from pyanaconda.anaconda_loggers import get_module_logger
+-from pyanaconda.modules.common.constants.objects import NVDIMM
+-from pyanaconda.modules.storage.nvdimm.nvdimm_interface import NVDIMMInterface
+-from pyanaconda.modules.storage.nvdimm.reconfigure import NVDIMMReconfigureTask
+-from pyanaconda.modules.storage.storage_subscriber import StorageSubscriberModule
+-
+-log = get_module_logger(__name__)
+-
+-__all__ = ["NVDIMMModule"]
+-
+-
+-class NVDIMMModule(StorageSubscriberModule):
+-    """The NVDIMM module."""
+-
+-    def __init__(self):
+-        super().__init__()
+-        self._actions = list()
+-
+-    def publish(self):
+-        """Publish the module."""
+-        DBus.publish_object(NVDIMM.object_path, NVDIMMInterface(self))
+-
+-    def is_supported(self):
+-        """Is this module supported?"""
+-        return True
+-
+-    def process_kickstart(self, data):
+-        """Process the kickstart data."""
+-        self._actions = data.nvdimm.actionList
+-
+-    def setup_kickstart(self, data):
+-        """Setup the kickstart data."""
+-        namespaces = self.get_used_namespaces()
+-        self.set_namespaces_to_use(namespaces)
+-        data.nvdimm.actionList = self._actions
+-
+-    def get_namespaces_to_use(self):
+-        """Get namespaces to be used.
+-
+-        FIXME: Can we return an empty string in the set?
+-
+-        :return: a set of namespaces
+-        """
+-        return {
+-            action.namespace for action in self._actions
+-            if action.action == NVDIMM_ACTION_RECONFIGURE
+-            or (action.action == NVDIMM_ACTION_USE and action.namespace)
+-        }
+-
+-    def get_devices_to_use(self):
+-        """Get devices to be used.
+-
+-        :return: a set to device names
+-        """
+-        return {
+-            dev for action in self._actions for dev in action.blockdevs
+-            if action.action == NVDIMM_ACTION_USE and action.blockdevs
+-        }
+-
+-    def get_devices_to_ignore(self):
+-        """Get devices to be ignored.
+-
+-        By default nvdimm devices are ignored. To become available for
+-        installation, the device(s) must be specified by nvdimm kickstart
+-        command. Also, only devices in sector mode are allowed.
+-
+-        Don't ignore devices that have an iso9660 file system. We might
+-        want to use them as an installation source.
+-
+-        :return: a set of device names
+-        """
+-        namespaces_to_use = self.get_namespaces_to_use()
+-        devices_to_use = self.get_devices_to_use()
+-        devices_to_ignore = set()
+-
+-        for ns_name, ns_info in nvdimm.namespaces.items():
+-            # this is happening when namespace is set to DEVDAX mode - block device is not present
+-            if ns_info.blockdev is None:
+-                log.debug("%s will be skipped - NVDIMM namespace block device information "
+-                          "can't be retrieved", ns_name)
+-                continue
+-
+-            info = udev.get_device(device_node="/dev/" + ns_info.blockdev)
+-
+-            if info and udev.device_get_format(info) == "iso9660":
+-                log.debug("%s / %s won't be ignored - NVDIMM device has "
+-                          "an iso9660 file system", ns_name, ns_info.blockdev)
+-                continue
+-            elif ns_info.mode != blockdev.NVDIMMNamespaceMode.SECTOR:
+-                log.debug("%s / %s will be ignored - NVDIMM device is not "
+-                          "in sector mode", ns_name, ns_info.blockdev)
+-            elif ns_name not in namespaces_to_use and ns_info.blockdev not in devices_to_use:
+-                log.debug("%s / %s will be ignored - NVDIMM device has not been "
+-                          "configured to be used", ns_name, ns_info.blockdev)
+-            else:
+-                continue
+-
+-            devices_to_ignore.add(ns_info.blockdev)
+-
+-        return devices_to_ignore
+-
+-    def create_action(self):
+-        """Create a new action.
+-
+-        FIXME: Don't use kickstart data.
+-
+-        :return: an instance of an action
+-        """
+-        from pyanaconda.core.kickstart.commands import NvdimmData
+-        action = NvdimmData()
+-        return action
+-
+-    def find_action(self, namespace):
+-        """Find an action by the namespace.
+-
+-        :param namespace: a name of the namespace
+-        :return: an instance of an action with the same namespace
+-        """
+-        if not namespace:
+-            return None
+-
+-        for action in self._actions:
+-            if action.namespace == namespace:
+-                return action
+-
+-        return None
+-
+-    def update_action(self, namespace, mode, sector_size):
+-        """Update an action.
+-
+-        :param namespace: a device name of a namespace
+-        :param mode: a mode
+-        :param sector_size: a sector size
+-        :return: an instance of the updated action
+-        """
+-        action = self.find_action(namespace)
+-
+-        if not action:
+-            action = self.create_action()
+-            self._actions.append(action)
+-
+-        action.action = NVDIMM_ACTION_RECONFIGURE
+-        action.namespace = namespace
+-        action.mode = mode
+-        action.sectorsize = sector_size
+-        return action
+-
+-    def get_used_namespaces(self):
+-        """Get a list of namespaces that are used for the installation.
+-
+-        :return: a list of namespaces
+-        """
+-        return [
+-            d.devname for d in self.storage.disks
+-            if isinstance(d, NVDIMMNamespaceDevice)
+-        ]
+-
+-    def set_namespaces_to_use(self, namespaces):
+-        """Set namespaces to use.
+-
+-        Updates "nvdimm use" commands.  Doesn't add use command for devices which
+-        are reconfigured with "nvdimm reconfigure" because reconfigure in kickstart
+-        implies use.
+-
+-        :param namespaces: a list of namespaces
+-        :return: a list of actions
+-        """
+-        log.debug("Setting namespaces to use to: %s", namespaces)
+-
+-        # Keep the reconfiguration actions.
+-        reconfigure_actions = [
+-            action for action in self._actions
+-            if action.action == NVDIMM_ACTION_RECONFIGURE
+-        ]
+-
+-        namespaces_to_configure = {
+-            action.namespace for action in reconfigure_actions
+-        }
+-
+-        # Create new use actions.
+-        use_actions = []
+-        namespaces_to_use = sorted(namespaces)
+-
+-        for namespace in namespaces_to_use:
+-            # Reconfigured namespaces are used implicitly.
+-            if namespace in namespaces_to_configure:
+-                continue
+-
+-            action = self.create_action()
+-            action.action = NVDIMM_ACTION_USE
+-            action.namespace = namespace
+-            use_actions.append(action)
+-
+-        # Update the current actions.
+-        self._actions = reconfigure_actions + use_actions
+-        return self._actions
+-
+-    def reconfigure_with_task(self, namespace, mode, sector_size):
+-        """Reconfigure a namespace.
+-
+-        :param namespace: a device name of a namespace (e.g. 'namespace0.0')
+-        :param mode: a new mode (one of 'sector', 'memory', 'dax')
+-        :param sector_size: a sector size for the sector mode
+-        :return: a task
+-        """
+-        task = NVDIMMReconfigureTask(namespace, mode, sector_size)
+-        task.succeeded_signal.connect(lambda: self.update_action(namespace, mode, sector_size))
+-        return task
+diff --git a/pyanaconda/modules/storage/nvdimm/nvdimm_interface.py b/pyanaconda/modules/storage/nvdimm/nvdimm_interface.py
+deleted file mode 100644
+index 4709952..0000000
+--- a/pyanaconda/modules/storage/nvdimm/nvdimm_interface.py
++++ /dev/null
+@@ -1,59 +0,0 @@
+-#
+-# DBus interface for the NVDIMM module.
+-#
+-# Copyright (C) 2019 Red Hat, Inc.
+-#
+-# This copyrighted material is made available to anyone wishing to use,
+-# modify, copy, or redistribute it subject to the terms and conditions of
+-# the GNU General Public License v.2, or (at your option) any later version.
+-# This program is distributed in the hope that it will be useful, but WITHOUT
+-# ANY WARRANTY expressed or implied, including the implied warranties of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+-# Public License for more details.  You should have received a copy of the
+-# GNU General Public License along with this program; if not, write to the
+-# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+-# 02110-1301, USA.  Any Red Hat trademarks that are incorporated in the
+-# source code or documentation are not subject to the GNU General Public
+-# License and may only be used or replicated with the express permission of
+-# Red Hat, Inc.
+-#
+-from dasbus.server.interface import dbus_interface
+-from dasbus.typing import *  # pylint: disable=wildcard-import
+-from pyanaconda.modules.common.base import KickstartModuleInterfaceTemplate
+-from pyanaconda.modules.common.constants.objects import NVDIMM
+-from pyanaconda.modules.common.containers import TaskContainer
+-
+-
+-@dbus_interface(NVDIMM.interface_name)
+-class NVDIMMInterface(KickstartModuleInterfaceTemplate):
+-    """DBus interface for the NVDIMM module."""
+-
+-    def IsSupported(self) -> Bool:
+-        """Is this module supported?"""
+-        return self.implementation.is_supported()
+-
+-    def GetDevicesToIgnore(self) -> List[Str]:
+-        """Get devices to be ignored.
+-
+-        :return: a list of device names
+-        """
+-        return list(self.implementation.get_devices_to_ignore())
+-
+-    def SetNamespacesToUse(self, namespaces: List[Str]):
+-        """Set namespaces to use.
+-
+-        :param namespaces:  a list of namespaces
+-        """
+-        self.implementation.set_namespaces_to_use(namespaces)
+-
+-    def ReconfigureWithTask(self, namespace: Str, mode: Str, sector_size: Int) -> ObjPath:
+-        """Reconfigure a namespace.
+-
+-        :param namespace: a device name of a namespace (e.g. 'namespace0.0')
+-        :param mode: a new mode (one of 'sector', 'memory', 'dax')
+-        :param sector_size: a sector size for the sector mode
+-        :return: a DBus path to a task
+-        """
+-        return TaskContainer.to_object_path(
+-            self.implementation.reconfigure_with_task(namespace, mode, sector_size)
+-        )
+diff --git a/pyanaconda/modules/storage/nvdimm/reconfigure.py b/pyanaconda/modules/storage/nvdimm/reconfigure.py
+deleted file mode 100644
+index 6e29ee3..0000000
+--- a/pyanaconda/modules/storage/nvdimm/reconfigure.py
++++ /dev/null
+@@ -1,59 +0,0 @@
+-#
+-# Reconfigure tasks
+-#
+-# Copyright (C) 2019 Red Hat, Inc.
+-#
+-# This copyrighted material is made available to anyone wishing to use,
+-# modify, copy, or redistribute it subject to the terms and conditions of
+-# the GNU General Public License v.2, or (at your option) any later version.
+-# This program is distributed in the hope that it will be useful, but WITHOUT
+-# ANY WARRANTY expressed or implied, including the implied warranties of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+-# Public License for more details.  You should have received a copy of the
+-# GNU General Public License along with this program; if not, write to the
+-# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+-# 02110-1301, USA.  Any Red Hat trademarks that are incorporated in the
+-# source code or documentation are not subject to the GNU General Public
+-# License and may only be used or replicated with the express permission of
+-# Red Hat, Inc.
+-#
+-from blivet.static_data import nvdimm
+-
+-from pyanaconda.anaconda_loggers import get_module_logger
+-from pyanaconda.modules.common.errors.configuration import StorageConfigurationError
+-from pyanaconda.modules.common.task import Task
+-
+-log = get_module_logger(__name__)
+-
+-__all__ = ["NVDIMMReconfigureTask"]
+-
+-
+-class NVDIMMReconfigureTask(Task):
+-    """A task for reconfiguring an NVDIMM namespace"""
+-
+-    def __init__(self, namespace, mode, sector_size):
+-        super().__init__()
+-        self._namespace = namespace
+-        self._mode = mode
+-        self._sector_size = sector_size
+-
+-    @property
+-    def name(self):
+-        return "Reconfigure an NVDIMM namespace"
+-
+-    def run(self):
+-        """Run the reconfiguration."""
+-        self._reconfigure_namespace(self._namespace, self._mode, self._sector_size)
+-
+-    def _reconfigure_namespace(self, namespace, mode, sector_size):
+-        """Reconfigure a namespace.
+-
+-        :param namespace: a device name of the namespace
+-        :param mode: a new mode of the namespace
+-        :param sector_size: a size of the sector
+-        :raise: StorageConfigurationError in case of failure
+-        """
+-        try:
+-            nvdimm.reconfigure_namespace(namespace, mode, sector_size=sector_size)
+-        except Exception as e:  # pylint: disable=broad-except
+-            raise StorageConfigurationError(str(e)) from e
+diff --git a/pyanaconda/modules/storage/storage.py b/pyanaconda/modules/storage/storage.py
+index a1a0ffc..f214dba 100644
+--- a/pyanaconda/modules/storage/storage.py
++++ b/pyanaconda/modules/storage/storage.py
+@@ -37,7 +37,6 @@ from pyanaconda.modules.storage.installation import MountFilesystemsTask, Create
+     WriteConfigurationTask
+ from pyanaconda.modules.storage.iscsi import ISCSIModule
+ from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
+-from pyanaconda.modules.storage.nvdimm import NVDIMMModule
+ from pyanaconda.modules.storage.partitioning.constants import PartitioningMethod
+ from pyanaconda.modules.storage.partitioning.factory import PartitioningFactory
+ from pyanaconda.modules.storage.partitioning.validate import StorageValidateTask
+@@ -99,9 +98,6 @@ class StorageService(KickstartService):
+         self._iscsi_module = ISCSIModule()
+         self._modules.add_module(self._iscsi_module)
+ 
+-        self._nvdimm_module = NVDIMMModule()
+-        self._modules.add_module(self._nvdimm_module)
+-
+         self._dasd_module = DASDModule()
+         self._modules.add_module(self._dasd_module)
+ 
+diff --git a/pyanaconda/ui/gui/spokes/advanced_storage.glade b/pyanaconda/ui/gui/spokes/advanced_storage.glade
+index d26300b..6c40d4e 100644
+--- a/pyanaconda/ui/gui/spokes/advanced_storage.glade
++++ b/pyanaconda/ui/gui/spokes/advanced_storage.glade
+@@ -48,9 +48,6 @@
+   <object class="GtkTreeModelFilter" id="multipathModel">
+     <property name="child_model">diskStore</property>
+   </object>
+-  <object class="GtkTreeModelFilter" id="nvdimmModel">
+-    <property name="child_model">diskStore</property>
+-  </object>
+   <object class="GtkTreeModelFilter" id="otherModel">
+     <property name="child_model">diskStore</property>
+   </object>
+@@ -1211,296 +1208,6 @@
+                         <property name="tab_fill">False</property>
+                       </packing>
+                     </child>
+-                    <child>
+-                      <object class="GtkBox" id="nvdimmBox">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="margin_left">6</property>
+-                        <property name="margin_right">6</property>
+-                        <property name="margin_top">12</property>
+-                        <property name="orientation">vertical</property>
+-                        <property name="spacing">6</property>
+-                        <child>
+-                          <object class="GtkBox" id="nvdimmParametersBox">
+-                            <property name="visible">True</property>
+-                            <property name="can_focus">False</property>
+-                            <property name="spacing">6</property>
+-                            <child>
+-                              <object class="GtkLabel" id="nvdimmFilterLabel">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">False</property>
+-                                <property name="label" translatable="yes" context="GUI|Installation Destination|Filter|NVDIMM Devices">Filter B_y:</property>
+-                                <property name="use_underline">True</property>
+-                                <property name="mnemonic_widget">zTypeCombo</property>
+-                                <property name="xalign">0</property>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">0</property>
+-                              </packing>
+-                            </child>
+-                            <child>
+-                              <object class="GtkComboBoxText" id="nvdimmTypeCombo">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">False</property>
+-                                <items>
+-                                  <item id="None" translatable="yes">None</item>
+-                                  <item id="Namespace" translatable="yes">Namespace</item>
+-                                  <item id="Mode" translatable="yes">Mode</item>
+-                                </items>
+-                                <signal name="changed" handler="on_nvdimm_type_combo_changed" swapped="no"/>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">False</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">1</property>
+-                              </packing>
+-                            </child>
+-                            <child>
+-                              <object class="GtkNotebook" id="nvdimmTypeNotebook">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">False</property>
+-                                <property name="no_show_all">True</property>
+-                                <property name="hexpand">True</property>
+-                                <property name="show_tabs">False</property>
+-                                <property name="show_border">False</property>
+-                                <child>
+-                                  <object class="GtkLabel" id="nvdimmNoneLabel">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="hexpand">True</property>
+-                                  </object>
+-                                </child>
+-                                <child type="tab">
+-                                  <placeholder/>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkBox" id="nvdimmModeBox">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="hexpand">True</property>
+-                                    <property name="spacing">6</property>
+-                                    <child>
+-                                      <object class="GtkLabel" id="nvdimmModeLabel">
+-                                        <property name="visible">True</property>
+-                                        <property name="can_focus">False</property>
+-                                        <property name="label" translatable="yes" context="GUI|Installation Destination|Filter|NVDIMM Devices|Mode">Show Only Devices in _Mode:</property>
+-                                        <property name="use_underline">True</property>
+-                                        <property name="mnemonic_widget">nvdimmModeCombo</property>
+-                                      </object>
+-                                      <packing>
+-                                        <property name="expand">False</property>
+-                                        <property name="fill">True</property>
+-                                        <property name="position">0</property>
+-                                      </packing>
+-                                    </child>
+-                                    <child>
+-                                      <object class="GtkComboBoxText" id="nvdimmModeCombo">
+-                                        <property name="visible">True</property>
+-                                        <property name="can_focus">False</property>
+-                                        <property name="hexpand">True</property>
+-                                        <property name="active_id">Sector</property>
+-                                        <items>
+-                                          <item id="Sector" translatable="yes">Sector</item>
+-                                          <item id="Memory" translatable="yes">Memory</item>
+-                                        </items>
+-                                        <signal name="changed" handler="on_filter_changed" swapped="no"/>
+-                                      </object>
+-                                      <packing>
+-                                        <property name="expand">True</property>
+-                                        <property name="fill">True</property>
+-                                        <property name="position">1</property>
+-                                      </packing>
+-                                    </child>
+-                                  </object>
+-                                  <packing>
+-                                    <property name="position">1</property>
+-                                  </packing>
+-                                </child>
+-                                <child type="tab">
+-                                  <placeholder/>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkBox" id="nvdimmNamespaceBox">
+-                                    <property name="visible">True</property>
+-                                    <property name="can_focus">False</property>
+-                                    <property name="spacing">6</property>
+-                                    <child>
+-                                      <object class="GtkLabel" id="nvdimmNamespaceLabel">
+-                                        <property name="visible">True</property>
+-                                        <property name="can_focus">False</property>
+-                                        <property name="label" translatable="yes" context="GUI|Installation Destination|Filter|NVDIMM Devices|Namespace">_Namespace:</property>
+-                                        <property name="use_underline">True</property>
+-                                        <property name="mnemonic_widget">nvdimmNamespaceEntry</property>
+-                                      </object>
+-                                      <packing>
+-                                        <property name="expand">False</property>
+-                                        <property name="fill">True</property>
+-                                        <property name="position">0</property>
+-                                      </packing>
+-                                    </child>
+-                                    <child>
+-                                      <object class="GtkEntry" id="nvdimmNamespaceEntry">
+-                                        <property name="visible">True</property>
+-                                        <property name="can_focus">True</property>
+-                                        <property name="hexpand">True</property>
+-                                        <property name="secondary_icon_name">edit-clear-symbolic</property>
+-                                        <signal name="changed" handler="on_filter_changed" swapped="no"/>
+-                                        <signal name="icon-release" handler="on_clear_icon_clicked" swapped="no"/>
+-                                      </object>
+-                                      <packing>
+-                                        <property name="expand">True</property>
+-                                        <property name="fill">True</property>
+-                                        <property name="position">1</property>
+-                                      </packing>
+-                                    </child>
+-                                  </object>
+-                                  <packing>
+-                                    <property name="position">1</property>
+-                                  </packing>
+-                                </child>
+-                                <child type="tab">
+-                                  <placeholder/>
+-                                </child>
+-                                <child>
+-                                  <placeholder/>
+-                                </child>
+-                                <child type="tab">
+-                                  <placeholder/>
+-                                </child>
+-                              </object>
+-                              <packing>
+-                                <property name="expand">True</property>
+-                                <property name="fill">True</property>
+-                                <property name="position">2</property>
+-                              </packing>
+-                            </child>
+-                          </object>
+-                          <packing>
+-                            <property name="expand">False</property>
+-                            <property name="fill">True</property>
+-                            <property name="position">0</property>
+-                          </packing>
+-                        </child>
+-                        <child>
+-                          <object class="GtkScrolledWindow" id="nvdimmScrolledWindow">
+-                            <property name="visible">True</property>
+-                            <property name="can_focus">True</property>
+-                            <property name="hexpand">True</property>
+-                            <property name="vexpand">True</property>
+-                            <property name="shadow_type">in</property>
+-                            <child>
+-                              <object class="GtkTreeView" id="nvdimmTreeView">
+-                                <property name="visible">True</property>
+-                                <property name="can_focus">True</property>
+-                                <property name="hexpand">True</property>
+-                                <property name="vexpand">True</property>
+-                                <property name="model">nvdimmModel</property>
+-                                <property name="rules_hint">True</property>
+-                                <property name="enable_search">False</property>
+-                                <property name="enable_tree_lines">True</property>
+-                                <child internal-child="selection">
+-                                  <object class="GtkTreeSelection" id="nvdimm-selection">
+-                                    <property name="mode">multiple</property>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkTreeViewColumn" id="nvdimmSelectedCol">
+-                                    <child>
+-                                      <object class="GtkCellRendererToggle" id="nvdimmSelectedRenderer">
+-                                        <signal name="toggled" handler="on_row_toggled" swapped="no"/>
+-                                      </object>
+-                                      <attributes>
+-                                        <attribute name="sensitive">2</attribute>
+-                                        <attribute name="visible">0</attribute>
+-                                        <attribute name="active">1</attribute>
+-                                      </attributes>
+-                                    </child>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkTreeViewColumn" id="nvdimmNamespaceCol">
+-                                    <property name="title" translatable="yes">Namespace</property>
+-                                    <property name="clickable">True</property>
+-                                    <child>
+-                                      <object class="GtkCellRendererText" id="nvdimmNamespaceRenderer"/>
+-                                      <attributes>
+-                                        <attribute name="sensitive">2</attribute>
+-                                        <attribute name="visible">0</attribute>
+-                                        <attribute name="text">17</attribute>
+-                                      </attributes>
+-                                    </child>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkTreeViewColumn" id="nvdimmNameCol">
+-                                    <property name="title" translatable="yes">Name</property>
+-                                    <property name="clickable">True</property>
+-                                    <child>
+-                                      <object class="GtkCellRendererText" id="nvdimmNameRenderer"/>
+-                                      <attributes>
+-                                        <attribute name="sensitive">2</attribute>
+-                                        <attribute name="visible">0</attribute>
+-                                        <attribute name="text">3</attribute>
+-                                      </attributes>
+-                                    </child>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkTreeViewColumn" id="nvdimmModeCol">
+-                                    <property name="title" translatable="yes">Mode</property>
+-                                    <property name="clickable">True</property>
+-                                    <child>
+-                                      <object class="GtkCellRendererText" id="nvdimmModeRenderer"/>
+-                                      <attributes>
+-                                        <attribute name="sensitive">2</attribute>
+-                                        <attribute name="visible">0</attribute>
+-                                        <attribute name="text">18</attribute>
+-                                      </attributes>
+-                                    </child>
+-                                  </object>
+-                                </child>
+-                                <child>
+-                                  <object class="GtkTreeViewColumn" id="nvdimmCapacityCol">
+-                                    <property name="title" translatable="yes">Capacity</property>
+-                                    <property name="clickable">True</property>
+-                                    <child>
+-                                      <object class="GtkCellRendererText" id="nvdimmCapacityRenderer"/>
+-                                      <attributes>
+-                                        <attribute name="sensitive">2</attribute>
+-                                        <attribute name="visible">0</attribute>
+-                                        <attribute name="text">6</attribute>
+-                                      </attributes>
+-                                    </child>
+-                                  </object>
+-                                </child>
+-                              </object>
+-                            </child>
+-                          </object>
+-                          <packing>
+-                            <property name="expand">True</property>
+-                            <property name="fill">True</property>
+-                            <property name="position">1</property>
+-                          </packing>
+-                        </child>
+-                      </object>
+-                      <packing>
+-                        <property name="position">3</property>
+-                      </packing>
+-                    </child>
+-                    <child type="tab">
+-                      <object class="GtkLabel" id="nvdimmLabel">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="label" translatable="yes" context="GUI|Installation Destination|Filter">_NVDIMM Devices</property>
+-                        <property name="use_underline">True</property>
+-                      </object>
+-                      <packing>
+-                        <property name="position">3</property>
+-                        <property name="tab_fill">False</property>
+-                      </packing>
+-                    </child>
+                     <child>
+                       <object class="GtkBox" id="zBox">
+                         <property name="visible">True</property>
+@@ -1939,21 +1646,6 @@
+                         <property name="position">3</property>
+                       </packing>
+                     </child>
+-                    <child>
+-                      <object class="GtkButton" id="reconfigureNVDIMMButton">
+-                        <property name="label" translatable="yes" context="GUI|Installation Destination|Filter">Reconfigure _NVDIMM...</property>
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">True</property>
+-                        <property name="receives_default">True</property>
+-                        <property name="use_underline">True</property>
+-                        <signal name="clicked" handler="on_reconfigure_nvdimm_clicked" swapped="no"/>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">False</property>
+-                        <property name="fill">True</property>
+-                        <property name="position">4</property>
+-                      </packing>
+-                    </child>
+                     <child>
+                       <object class="GtkButton" id="refresh">
+                         <property name="label" translatable="yes" context="GUI|Installation Destination|Filter">Refresh _List</property>
+diff --git a/pyanaconda/ui/gui/spokes/advanced_storage.py b/pyanaconda/ui/gui/spokes/advanced_storage.py
+index cc4f81d..d8f76c1 100644
+--- a/pyanaconda/ui/gui/spokes/advanced_storage.py
++++ b/pyanaconda/ui/gui/spokes/advanced_storage.py
+@@ -35,7 +35,6 @@ from pyanaconda.ui.gui.spokes.advstorage.fcoe import FCoEDialog
+ from pyanaconda.ui.gui.spokes.advstorage.iscsi import ISCSIDialog
+ from pyanaconda.ui.gui.spokes.advstorage.zfcp import ZFCPDialog
+ from pyanaconda.ui.gui.spokes.advstorage.dasd import DASDDialog
+-from pyanaconda.ui.gui.spokes.advstorage.nvdimm import NVDIMMDialog
+ from pyanaconda.ui.gui.spokes.lib.cart import SelectedDisksDialog
+ from pyanaconda.ui.categories.system import SystemCategory
+ 
+@@ -50,8 +49,7 @@ __all__ = ["FilterSpoke"]
+ PAGE_SEARCH = 0
+ PAGE_MULTIPATH = 1
+ PAGE_OTHER = 2
+-PAGE_NVDIMM = 3
+-PAGE_Z = 4
++PAGE_Z = 3
+ 
+ DiskStoreRow = namedtuple("DiskStoreRow", [
+     "visible", "selected", "mutable",
+@@ -431,69 +429,13 @@ class ZPage(FilterPage):
+         return False
+ 
+ 
+-class NvdimmPage(FilterPage):
+-    # Match these to nvdimmTypeCombo ids in glade
+-    SEARCH_TYPE_NAMESPACE = 'Namespace'
+-    SEARCH_TYPE_MODE = 'Mode'
+-
+-    def __init__(self, builder):
+-        super().__init__(builder, "nvdimmModel", "nvdimmTypeCombo")
+-        self._tree_view = self._builder.get_object("nvdimmTreeView")
+-        self._mode_combo = self._builder.get_object("nvdimmModeCombo")
+-        self._namespace_entry = self._builder.get_object("nvdimmNamespaceEntry")
+-
+-    def is_member(self, device_type):
+-        return device_type == "nvdimm"
+-
+-    def setup(self, store, disks, selected_names, protected_names):
+-        modes = set()
+-
+-        for device_data in disks:
+-            mode = device_data.attrs.get("mode")
+-            row = create_row(
+-                device_data,
+-                device_data.name in selected_names and mode == "sector",
+-                device_data.name not in protected_names or mode != "sector",
+-            )
+-
+-            store.append([*row])
+-            modes.add(mode)
+-
+-        self._setup_combo(self._mode_combo, modes)
+-        self._setup_search_type()
+-
+-    def clear(self):
+-        self._mode_combo.set_active(0)
+-        self._namespace_entry.set_text("")
+-
+-    def _filter_func(self, filter_by, row):
+-        if filter_by == self.SEARCH_TYPE_MODE:
+-            return self._mode_combo.get_active_text() == row.mode
+-
+-        if filter_by == self.SEARCH_TYPE_NAMESPACE:
+-            return self._namespace_entry.get_text().strip() in row.namespace
+-
+-        return False
+-
+-    def get_selected_namespaces(self):
+-        namespaces = []
+-        selection = self._tree_view.get_selection()
+-        store, path_list = selection.get_selected_rows()
+-
+-        for path in path_list:
+-            store_row = DiskStoreRow(*store[store.get_iter(path)])
+-            namespaces.append(store_row.namespace)
+-
+-        return namespaces
+-
+-
+ class FilterSpoke(NormalSpoke):
+     """
+        .. inheritance-diagram:: FilterSpoke
+           :parts: 3
+     """
+     builderObjects = ["diskStore", "filterWindow",
+-                      "searchModel", "multipathModel", "otherModel", "zModel", "nvdimmModel"]
++                      "searchModel", "multipathModel", "otherModel", "zModel"]
+     mainWidgetName = "filterWindow"
+     uiFile = "spokes/advanced_storage.glade"
+     category = SystemCategory
+@@ -520,7 +462,6 @@ class FilterSpoke(NormalSpoke):
+ 
+         self._notebook = self.builder.get_object("advancedNotebook")
+         self._store = self.builder.get_object("diskStore")
+-        self._reconfigure_nvdimm_button = self.builder.get_object("reconfigureNVDIMMButton")
+ 
+     @property
+     def indirect(self):
+@@ -542,7 +483,6 @@ class FilterSpoke(NormalSpoke):
+             PAGE_SEARCH: SearchPage(self.builder),
+             PAGE_MULTIPATH: MultipathPage(self.builder),
+             PAGE_OTHER: OtherPage(self.builder),
+-            PAGE_NVDIMM: NvdimmPage(self.builder),
+             PAGE_Z: ZPage(self.builder),
+         }
+ 
+@@ -559,9 +499,6 @@ class FilterSpoke(NormalSpoke):
+         if not STORAGE.get_proxy(ISCSI).IsSupported():
+             self.builder.get_object("addISCSIButton").destroy()
+ 
+-        # The button is sensitive only on NVDIMM page
+-        self._reconfigure_nvdimm_button.set_sensitive(False)
+-
+         # report that we are done
+         self.initialize_done()
+ 
+@@ -665,7 +602,6 @@ class FilterSpoke(NormalSpoke):
+ 
+         # Set up the UI.
+         notebook.get_nth_page(new_page_num).show_all()
+-        self._reconfigure_nvdimm_button.set_sensitive(new_page_num == 3)
+ 
+     def on_row_toggled(self, button, path):
+         if not path:
+@@ -710,12 +646,6 @@ class FilterSpoke(NormalSpoke):
+         dialog = DASDDialog(self.data)
+         self._run_dialog_and_refresh(dialog)
+ 
+-    def on_reconfigure_nvdimm_clicked(self, widget, *args):
+-        log.debug("Reconfigure a NVDIMM device.")
+-        namespaces = self._pages[PAGE_NVDIMM].get_selected_namespaces()
+-        dialog = NVDIMMDialog(self.data, namespaces)
+-        self._run_dialog_and_refresh(dialog)
+-
+     def _run_dialog_and_refresh(self, dialog):
+         # Run the dialog.
+         with self.main_window.enlightbox(dialog.window):
+@@ -742,10 +672,6 @@ class FilterSpoke(NormalSpoke):
+         self._set_notebook_page("otherTypeNotebook", combo.get_active())
+         self._refilter_current_page()
+ 
+-    def on_nvdimm_type_combo_changed(self, combo):
+-        self._set_notebook_page("nvdimmTypeNotebook", combo.get_active())
+-        self._refilter_current_page()
+-
+     def on_z_type_combo_changed(self, combo):
+         self._set_notebook_page("zTypeNotebook", combo.get_active())
+         self._refilter_current_page()
+diff --git a/pyanaconda/ui/gui/spokes/advstorage/nvdimm.glade b/pyanaconda/ui/gui/spokes/advstorage/nvdimm.glade
+deleted file mode 100644
+index a8464f7..0000000
+--- a/pyanaconda/ui/gui/spokes/advstorage/nvdimm.glade
++++ /dev/null
+@@ -1,363 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!-- Generated with glade 3.20.3 -->
+-<interface>
+-  <requires lib="gtk+" version="3.20"/>
+-  <object class="GtkDialog" id="nvdimmDialog">
+-    <property name="can_focus">False</property>
+-    <property name="border_width">6</property>
+-    <property name="resizable">False</property>
+-    <property name="modal">True</property>
+-    <property name="type_hint">dialog</property>
+-    <property name="decorated">False</property>
+-    <child internal-child="vbox">
+-      <object class="GtkBox" id="dialog-vbox1">
+-        <property name="can_focus">False</property>
+-        <property name="orientation">vertical</property>
+-        <property name="spacing">2</property>
+-        <child internal-child="action_area">
+-          <object class="GtkButtonBox" id="dialog-action-area1">
+-            <property name="can_focus">False</property>
+-            <property name="layout_style">end</property>
+-            <child>
+-              <object class="GtkButton" id="cancelButton">
+-                <property name="label" translatable="yes" context="GUI|Advanced Storage|NVDIMM|Reconfigure">_Cancel</property>
+-                <property name="visible">True</property>
+-                <property name="can_focus">True</property>
+-                <property name="receives_default">True</property>
+-                <property name="use_underline">True</property>
+-              </object>
+-              <packing>
+-                <property name="expand">False</property>
+-                <property name="fill">True</property>
+-                <property name="position">0</property>
+-              </packing>
+-            </child>
+-            <child>
+-              <object class="GtkButton" id="okButton">
+-                <property name="label">gtk-ok</property>
+-                <property name="visible">True</property>
+-                <property name="sensitive">False</property>
+-                <property name="can_focus">True</property>
+-                <property name="receives_default">True</property>
+-                <property name="use_stock">True</property>
+-              </object>
+-              <packing>
+-                <property name="expand">False</property>
+-                <property name="fill">True</property>
+-                <property name="position">1</property>
+-              </packing>
+-            </child>
+-          </object>
+-          <packing>
+-            <property name="expand">False</property>
+-            <property name="fill">True</property>
+-            <property name="pack_type">end</property>
+-            <property name="position">0</property>
+-          </packing>
+-        </child>
+-        <child>
+-          <object class="GtkGrid" id="grid1">
+-            <property name="visible">True</property>
+-            <property name="can_focus">False</property>
+-            <property name="margin_right">5</property>
+-            <property name="row_spacing">6</property>
+-            <property name="column_spacing">6</property>
+-            <child>
+-              <object class="GtkLabel" id="infoLabel">
+-                <property name="visible">True</property>
+-                <property name="can_focus">False</property>
+-                <property name="margin_bottom">6</property>
+-                <property name="label" translatable="yes">The following NVDIMM devices selected from the list will be reconfigured to sector mode:</property>
+-                <property name="wrap">True</property>
+-                <property name="xalign">0</property>
+-              </object>
+-              <packing>
+-                <property name="left_attach">0</property>
+-                <property name="top_attach">0</property>
+-                <property name="width">2</property>
+-              </packing>
+-            </child>
+-            <child>
+-              <object class="GtkLabel" id="sectorSizeLabel">
+-                <property name="visible">True</property>
+-                <property name="can_focus">False</property>
+-                <property name="halign">end</property>
+-                <property name="label" translatable="yes" context="GUI|Advanced Storage|NVDIMM|Reconfigure">_Sector size:</property>
+-                <property name="use_underline">True</property>
+-                <property name="mnemonic_widget">sectorSizeCombo</property>
+-              </object>
+-              <packing>
+-                <property name="left_attach">0</property>
+-                <property name="top_attach">3</property>
+-              </packing>
+-            </child>
+-            <child>
+-              <object class="GtkNotebook" id="conditionNotebook">
+-                <property name="visible">True</property>
+-                <property name="can_focus">False</property>
+-                <property name="valign">center</property>
+-                <property name="show_tabs">False</property>
+-                <property name="show_border">False</property>
+-                <child>
+-                  <object class="GtkButton" id="startButton">
+-                    <property name="label" translatable="yes" context="GUI|Advanced Storage|NVDIMM|Reconfigure">Start _Reconfiguration</property>
+-                    <property name="visible">True</property>
+-                    <property name="can_focus">True</property>
+-                    <property name="receives_default">True</property>
+-                    <property name="halign">center</property>
+-                    <property name="valign">center</property>
+-                    <property name="vexpand">True</property>
+-                    <property name="use_underline">True</property>
+-                    <signal name="clicked" handler="on_start_clicked" swapped="no"/>
+-                  </object>
+-                </child>
+-                <child type="tab">
+-                  <placeholder/>
+-                </child>
+-                <child>
+-                  <object class="GtkBox" id="waitBox">
+-                    <property name="visible">True</property>
+-                    <property name="can_focus">False</property>
+-                    <property name="halign">center</property>
+-                    <property name="spacing">5</property>
+-                    <child>
+-                      <object class="GtkSpinner" id="reconfigureSpinner">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="active">True</property>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">False</property>
+-                        <property name="fill">True</property>
+-                        <property name="position">0</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkLabel" id="reconfiguringLabel">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="label" translatable="yes">Reconfiguring NVDIMM devices. This may take a moment...</property>
+-                      </object>
+-                      <packing>
+-                        <property name="expand">False</property>
+-                        <property name="fill">True</property>
+-                        <property name="position">1</property>
+-                      </packing>
+-                    </child>
+-                  </object>
+-                  <packing>
+-                    <property name="position">1</property>
+-                  </packing>
+-                </child>
+-                <child type="tab">
+-                  <placeholder/>
+-                </child>
+-                <child>
+-                  <object class="GtkGrid" id="errorBox">
+-                    <property name="visible">True</property>
+-                    <property name="can_focus">False</property>
+-                    <property name="halign">center</property>
+-                    <property name="row_spacing">6</property>
+-                    <property name="column_spacing">6</property>
+-                    <child>
+-                      <object class="GtkImage" id="image3">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="xalign">1</property>
+-                        <property name="icon_name">dialog-error-symbolic</property>
+-                      </object>
+-                      <packing>
+-                        <property name="left_attach">0</property>
+-                        <property name="top_attach">0</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkLabel" id="label14">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="label" translatable="yes">Device reconfiguration failed.</property>
+-                        <property name="xalign">0</property>
+-                        <attributes>
+-                          <attribute name="weight" value="bold"/>
+-                        </attributes>
+-                      </object>
+-                      <packing>
+-                        <property name="left_attach">1</property>
+-                        <property name="top_attach">0</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkLabel" id="deviceErrorLabel">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="label">Error message goes here.</property>
+-                        <property name="xalign">0</property>
+-                      </object>
+-                      <packing>
+-                        <property name="left_attach">1</property>
+-                        <property name="top_attach">2</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkLabel" id="label22">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="label" translatable="yes">The following error occurred reconfiguring NVDIMM devices:</property>
+-                        <property name="wrap">True</property>
+-                        <property name="xalign">0</property>
+-                      </object>
+-                      <packing>
+-                        <property name="left_attach">1</property>
+-                        <property name="top_attach">1</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <placeholder/>
+-                    </child>
+-                    <child>
+-                      <placeholder/>
+-                    </child>
+-                  </object>
+-                  <packing>
+-                    <property name="position">2</property>
+-                  </packing>
+-                </child>
+-                <child type="tab">
+-                  <placeholder/>
+-                </child>
+-                <child>
+-                  <object class="GtkGrid" id="successBox">
+-                    <property name="visible">True</property>
+-                    <property name="can_focus">False</property>
+-                    <property name="halign">center</property>
+-                    <property name="row_spacing">6</property>
+-                    <property name="column_spacing">6</property>
+-                    <child>
+-                      <object class="GtkImage" id="image1">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="xalign">1</property>
+-                        <property name="icon_name">emblem-default-symbolic</property>
+-                      </object>
+-                      <packing>
+-                        <property name="left_attach">0</property>
+-                        <property name="top_attach">0</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkLabel" id="succeededLabel">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="vexpand">True</property>
+-                        <property name="label" translatable="yes">Devices reconfiguration succeeded.</property>
+-                        <property name="xalign">0</property>
+-                        <attributes>
+-                          <attribute name="weight" value="bold"/>
+-                        </attributes>
+-                      </object>
+-                      <packing>
+-                        <property name="left_attach">1</property>
+-                        <property name="top_attach">0</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkSpinner" id="repopulateSpinner">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="active">True</property>
+-                      </object>
+-                      <packing>
+-                        <property name="left_attach">0</property>
+-                        <property name="top_attach">1</property>
+-                      </packing>
+-                    </child>
+-                    <child>
+-                      <object class="GtkLabel" id="repopulateLabel">
+-                        <property name="visible">True</property>
+-                        <property name="can_focus">False</property>
+-                        <property name="label" translatable="yes">Rescanning disks after reconfiguration.
+-This may take a moment ...</property>
+-                      </object>
+-                      <packing>
+-                        <property name="left_attach">1</property>
+-                        <property name="top_attach">1</property>
+-                      </packing>
+-                    </child>
+-                  </object>
+-                  <packing>
+-                    <property name="position">3</property>
+-                  </packing>
+-                </child>
+-                <child type="tab">
+-                  <placeholder/>
+-                </child>
+-              </object>
+-              <packing>
+-                <property name="left_attach">0</property>
+-                <property name="top_attach">4</property>
+-                <property name="width">2</property>
+-              </packing>
+-            </child>
+-            <child>
+-              <object class="GtkLabel" id="devicesLabel">
+-                <property name="visible">True</property>
+-                <property name="can_focus">False</property>
+-                <property name="halign">start</property>
+-                <property name="margin_bottom">12</property>
+-                <property name="ellipsize">end</property>
+-                <attributes>
+-                  <attribute name="weight" value="bold"/>
+-                </attributes>
+-              </object>
+-              <packing>
+-                <property name="left_attach">0</property>
+-                <property name="top_attach">1</property>
+-                <property name="width">2</property>
+-              </packing>
+-            </child>
+-            <child>
+-              <object class="GtkComboBoxText" id="sectorSizeCombo">
+-                <property name="visible">True</property>
+-                <property name="can_focus">False</property>
+-                <property name="halign">start</property>
+-                <property name="hexpand">False</property>
+-              </object>
+-              <packing>
+-                <property name="left_attach">1</property>
+-                <property name="top_attach">3</property>
+-              </packing>
+-            </child>
+-            <child>
+-              <object class="GtkLabel" id="warningLabel">
+-                <property name="visible">True</property>
+-                <property name="can_focus">False</property>
+-                <property name="label" translatable="yes">Warning: Existing data on reconfigured devices will be lost.</property>
+-                <attributes>
+-                  <attribute name="weight" value="bold"/>
+-                </attributes>
+-              </object>
+-              <packing>
+-                <property name="left_attach">0</property>
+-                <property name="top_attach">2</property>
+-                <property name="width">2</property>
+-              </packing>
+-            </child>
+-          </object>
+-          <packing>
+-            <property name="expand">False</property>
+-            <property name="fill">True</property>
+-            <property name="position">1</property>
+-          </packing>
+-        </child>
+-      </object>
+-    </child>
+-    <action-widgets>
+-      <action-widget response="0">cancelButton</action-widget>
+-      <action-widget response="1">okButton</action-widget>
+-    </action-widgets>
+-    <child>
+-      <placeholder/>
+-    </child>
+-  </object>
+-  <object class="GtkTextBuffer" id="textbuffer1"/>
+-</interface>
+diff --git a/pyanaconda/ui/gui/spokes/advstorage/nvdimm.py b/pyanaconda/ui/gui/spokes/advstorage/nvdimm.py
+deleted file mode 100644
+index 41245a9..0000000
+--- a/pyanaconda/ui/gui/spokes/advstorage/nvdimm.py
++++ /dev/null
+@@ -1,175 +0,0 @@
+-# NVDIMM configuration dialog
+-#
+-# Copyright (C) 2018  Red Hat, Inc.
+-#
+-# This copyrighted material is made available to anyone wishing to use,
+-# modify, copy, or redistribute it subject to the terms and conditions of
+-# the GNU General Public License v.2, or (at your option) any later version.
+-# This program is distributed in the hope that it will be useful, but WITHOUT
+-# ANY WARRANTY expressed or implied, including the implied warranties of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+-# Public License for more details.  You should have received a copy of the
+-# GNU General Public License along with this program; if not, write to the
+-# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+-# 02110-1301, USA.  Any Red Hat trademarks that are incorporated in the
+-# source code or documentation are not subject to the GNU General Public
+-# License and may only be used or replicated with the express permission of
+-# Red Hat, Inc.
+-#
+-from pykickstart.constants import NVDIMM_MODE_SECTOR
+-from pyanaconda.core.i18n import _, C_
+-from pyanaconda.modules.common.task import async_run_task
+-from pyanaconda.modules.common.constants.services import STORAGE
+-from pyanaconda.modules.common.constants.objects import NVDIMM
+-from pyanaconda.modules.common.errors.configuration import StorageConfigurationError
+-from pyanaconda.ui.gui import GUIObject
+-
+-from pyanaconda.anaconda_loggers import get_module_logger
+-log = get_module_logger(__name__)
+-
+-__all__ = ["NVDIMMDialog"]
+-
+-PAGE_ACTION = 1
+-PAGE_RESULT_ERROR = 2
+-PAGE_RESULT_SUCCESS = 3
+-
+-NVDIMM_SECTOR_SIZE_OPTIONS = ['512', '4096']
+-
+-class NVDIMMDialog(GUIObject):
+-    """
+-       .. inheritance-diagram:: NVDIMMDialog
+-          :parts: 3
+-    """
+-    builderObjects = ["nvdimmDialog", "sectorSizeAdjustment"]
+-    mainWidgetName = "nvdimmDialog"
+-    uiFile = "spokes/advstorage/nvdimm.glade"
+-
+-    def __init__(self, data, namespaces):
+-        GUIObject.__init__(self, data)
+-        self._namespaces = namespaces
+-        self._storage_proxy = STORAGE.get_proxy()
+-        self._nvdimm_proxy = STORAGE.get_proxy(NVDIMM)
+-
+-        self._startButton = self.builder.get_object("startButton")
+-        self._infoLabel = self.builder.get_object("infoLabel")
+-        self._devicesLabel = self.builder.get_object("devicesLabel")
+-        self._cancelButton = self.builder.get_object("cancelButton")
+-        self._okButton = self.builder.get_object("okButton")
+-        self._reconfigureSpinner = self.builder.get_object("reconfigureSpinner")
+-        self._repopulateSpinner = self.builder.get_object("repopulateSpinner")
+-        self._repopulateLabel = self.builder.get_object("repopulateLabel")
+-        self._sectorSizeLabel = self.builder.get_object("sectorSizeLabel")
+-        self._sectorSizeCombo = self.builder.get_object("sectorSizeCombo")
+-        self._conditionNotebook = self.builder.get_object("conditionNotebook")
+-        self._deviceErrorLabel = self.builder.get_object("deviceErrorLabel")
+-        self._setup_size_combo()
+-
+-    def _setup_size_combo(self):
+-        for size in NVDIMM_SECTOR_SIZE_OPTIONS:
+-            self._sectorSizeCombo.append_text(size)
+-
+-    def refresh(self):
+-        self._sectorSizeCombo.set_active(0)
+-
+-        if self._namespaces:
+-            self._devicesLabel.set_text("%s" % ", ".join(self._namespaces))
+-        else:
+-            self._sectorSizeCombo.set_sensitive(False)
+-            self._okButton.set_sensitive(False)
+-            self._startButton.set_sensitive(False)
+-            self._sectorSizeLabel.set_sensitive(False)
+-            self._infoLabel.set_text(
+-                C_("GUI|Advanced Storage|NVDIM", "No device to be reconfigured selected.")
+-            )
+-
+-    def run(self):
+-        rc = self.window.run()
+-        self.window.destroy()
+-        return rc
+-
+-    @property
+-    def sector_size(self):
+-        """Size of the sector."""
+-        return int(self._sectorSizeCombo.get_active_text())
+-
+-    def on_start_clicked(self, *args):
+-        """Start to reconfigure the namespaces."""
+-        if not self._namespaces:
+-            return
+-
+-        namespace = self._namespaces.pop(0)
+-        self.reconfigure_namespace(namespace)
+-
+-    def reconfigure_namespace(self, namespace):
+-        """Start the reconfiguration task."""
+-        # Update the widgets.
+-        self._conditionNotebook.set_current_page(PAGE_ACTION)
+-        self._startButton.set_sensitive(False)
+-        self._cancelButton.set_sensitive(False)
+-        self._sectorSizeCombo.set_sensitive(False)
+-        self._okButton.set_sensitive(False)
+-
+-        # Get the data.
+-        mode = NVDIMM_MODE_SECTOR
+-        sector_size = self.sector_size
+-
+-        # Get the task.
+-        task_path = self._nvdimm_proxy.ReconfigureWithTask(namespace, mode, sector_size)
+-        task_proxy = STORAGE.get_proxy(task_path)
+-
+-        # Start the reconfiguration.
+-        async_run_task(task_proxy, self.reconfigure_finished)
+-
+-        self._reconfigureSpinner.start()
+-
+-    def reconfigure_finished(self, task_proxy):
+-        """Callback for reconfigure_namespaces."""
+-        # Stop the spinner.
+-        self._reconfigureSpinner.stop()
+-
+-        try:
+-            # Finish the task.
+-            task_proxy.Finish()
+-        except StorageConfigurationError as e:
+-            # Configuration has failed, show the error.
+-            self._deviceErrorLabel.set_text(str(e))
+-            self._conditionNotebook.set_current_page(PAGE_RESULT_ERROR)
+-            self._okButton.set_sensitive(True)
+-        else:
+-            # More namespaces to configure? Continue.
+-            if self._namespaces:
+-                namespace = self._namespaces.pop(0)
+-                self.reconfigure_namespace(namespace)
+-                return
+-
+-            # Otherwise, repopulate the device tree.
+-            self.repopulate_storage()
+-
+-    def repopulate_storage(self):
+-        """Repopulate the storage."""
+-        # Update the widgets.
+-        self._conditionNotebook.set_current_page(PAGE_RESULT_SUCCESS)
+-
+-        # Get the task.
+-        task_path = self._storage_proxy.ScanDevicesWithTask()
+-        task_proxy = STORAGE.get_proxy(task_path)
+-
+-        # Start the task.
+-        async_run_task(task_proxy, self.repopulate_finished)
+-
+-        self._repopulateSpinner.start()
+-
+-    def repopulate_finished(self, task_proxy):
+-        """Callback for repopulate_storage.
+-
+-        :param task_proxy: an instance of the task proxy
+-        """
+-        # Stop the spinner.
+-        self._repopulateSpinner.stop()
+-
+-        # Finish the task. The failures are fatal.
+-        task_proxy.Finish()
+-
+-        # Set up the UI.
+-        self._repopulateLabel.set_text(_("Rescanning disks finished."))
+-        self._okButton.set_sensitive(True)
+diff --git a/pyanaconda/ui/gui/spokes/storage.py b/pyanaconda/ui/gui/spokes/storage.py
+index 253b4f3..a445005 100644
+--- a/pyanaconda/ui/gui/spokes/storage.py
++++ b/pyanaconda/ui/gui/spokes/storage.py
+@@ -464,10 +464,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
+                 wwpn=device_data.attrs.get("wwpn", ""),
+                 lun=device_data.attrs.get("fcp-lun", "")
+             )
+-        elif device_data.type == "nvdimm":
+-            description = _("NVDIMM device {namespace}").format(
+-                namespace=device_data.attrs.get("namespace", "")
+-            )
+         else:
+             description = device_data.description
+ 
+diff --git a/pyanaconda/ui/lib/storage.py b/pyanaconda/ui/lib/storage.py
+index 6976d06..9b6cefe 100644
+--- a/pyanaconda/ui/lib/storage.py
++++ b/pyanaconda/ui/lib/storage.py
+@@ -25,14 +25,13 @@ from dasbus.typing import unwrap_variant
+ from dasbus.client.proxy import get_object_path
+ 
+ from pyanaconda.anaconda_loggers import get_module_logger
+-from pyanaconda.core.configuration.anaconda import conf
+ from pyanaconda.core.constants import PARTITIONING_METHOD_AUTOMATIC, BOOTLOADER_DRIVE_UNSET, \
+     PARTITIONING_METHOD_CUSTOM
+ from pyanaconda.core.i18n import P_, _
+ from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
+ from pyanaconda.flags import flags
+ from pyanaconda.modules.common.constants.objects import DISK_SELECTION, BOOTLOADER, DEVICE_TREE, \
+-    DISK_INITIALIZATION, NVDIMM
++    DISK_INITIALIZATION
+ from pyanaconda.modules.common.constants.services import STORAGE
+ from pyanaconda.modules.common.errors.configuration import StorageConfigurationError, \
+     BootloaderConfigurationError
+@@ -331,7 +330,6 @@ def is_local_disk(device_type):
+         "iscsi",
+         "fcoe",
+         "zfcp",
+-        "nvdimm"
+     )
+ 
+ 
+@@ -363,25 +361,6 @@ def size_from_input(input_str, units=None):
+     return size
+ 
+ 
+-def ignore_nvdimm_blockdevs():
+-    """Add nvdimm devices to be ignored to the ignored disks."""
+-    if conf.target.is_directory:
+-        return
+-
+-    nvdimm_proxy = STORAGE.get_proxy(NVDIMM)
+-    ignored_nvdimm_devs = nvdimm_proxy.GetDevicesToIgnore()
+-
+-    if not ignored_nvdimm_devs:
+-        return
+-
+-    log.debug("Adding NVDIMM devices %s to ignored disks", ",".join(ignored_nvdimm_devs))
+-
+-    disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
+-    ignored_disks = disk_select_proxy.IgnoredDisks
+-    ignored_disks.extend(ignored_nvdimm_devs)
+-    disk_select_proxy.IgnoredDisks = ignored_disks
+-
+-
+ def ignore_oemdrv_disks():
+     """Ignore disks labeled OEMDRV."""
+     matched = device_matches("LABEL=OEMDRV", disks_only=True)
+diff --git a/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_device_tree.py b/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_device_tree.py
+index a7981b1..53e847f 100644
+--- a/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_device_tree.py
++++ b/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_device_tree.py
+@@ -26,7 +26,7 @@ from unittest.mock import patch, Mock, PropertyMock
+ from tests.unit_tests.pyanaconda_tests import patch_dbus_publish_object, check_task_creation
+ 
+ from blivet.devices import StorageDevice, DiskDevice, DASDDevice, ZFCPDiskDevice, PartitionDevice, \
+-    LUKSDevice, iScsiDiskDevice, NVDIMMNamespaceDevice, FcoeDiskDevice, OpticalDevice
++    LUKSDevice, iScsiDiskDevice, FcoeDiskDevice, OpticalDevice
+ from blivet.errors import StorageError, FSError
+ from blivet.formats import get_format, device_formats, DeviceFormat
+ from blivet.formats.fs import FS, Iso9660FS
+@@ -226,26 +226,6 @@ class DeviceTreeInterfaceTestCase(unittest.TestCase):
+             "path-id": "pci-0000:00:00.0-bla-1"
+         })
+ 
+-    def test_get_nvdimm_device_data(self):
+-        """Test GetDeviceData for NVDIMM."""
+-        self._add_device(NVDIMMNamespaceDevice(
+-            "dev1",
+-            fmt=get_format("ext4"),
+-            size=Size("10 GiB"),
+-            mode="sector",
+-            devname="namespace0.0",
+-            sector_size=512,
+-            id_path="pci-0000:00:00.0-bla-1"
+-        ))
+-
+-        data = self.interface.GetDeviceData("dev1")
+-        assert data['type'] == get_variant(Str, 'nvdimm')
+-        assert data['attrs'] == get_variant(Dict[Str, Str], {
+-            "mode": "sector",
+-            "namespace": "namespace0.0",
+-            "path-id": "pci-0000:00:00.0-bla-1"
+-        })
+-
+     def test_get_zfcp_device_data(self):
+         """Test GetDeviceData for zFCP."""
+         self._add_device(ZFCPDiskDevice(
+diff --git a/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_nvdimm.py b/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_nvdimm.py
+deleted file mode 100644
+index ed4b8c8..0000000
+--- a/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_nvdimm.py
++++ /dev/null
+@@ -1,481 +0,0 @@
+-#
+-# Copyright (C) 2018  Red Hat, Inc.
+-#
+-# This copyrighted material is made available to anyone wishing to use,
+-# modify, copy, or redistribute it subject to the terms and conditions of
+-# the GNU General Public License v.2, or (at your option) any later version.
+-# This program is distributed in the hope that it will be useful, but WITHOUT
+-# ANY WARRANTY expressed or implied, including the implied warranties of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+-# Public License for more details.  You should have received a copy of the
+-# GNU General Public License along with this program; if not, write to the
+-# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+-# 02110-1301, USA.  Any Red Hat trademarks that are incorporated in the
+-# source code or documentation are not subject to the GNU General Public
+-# License and may only be used or replicated with the express permission of
+-# Red Hat, Inc.
+-#
+-# Red Hat Author(s): Radek Vykydal <rvykydal@redhat.com>
+-#
+-import unittest
+-import pytest
+-
+-from textwrap import dedent
+-from unittest.mock import patch, Mock
+-
+-from blivet import blockdev
+-from blivet.devices import NVDIMMNamespaceDevice
+-from blivet.formats import get_format
+-from blivet.size import Size
+-
+-from tests.unit_tests.pyanaconda_tests import patch_dbus_publish_object, check_task_creation, \
+-    clear_version_from_kickstart_string
+-
+-from pyanaconda.modules.common.errors.configuration import StorageConfigurationError
+-from pyanaconda.modules.storage.devicetree.model import create_storage
+-from pyanaconda.modules.storage.nvdimm import NVDIMMModule
+-from pyanaconda.modules.storage.nvdimm.nvdimm_interface import NVDIMMInterface
+-from pyanaconda.modules.storage.nvdimm.reconfigure import NVDIMMReconfigureTask
+-from pyanaconda.modules.storage.storage import StorageService
+-from pykickstart.constants import NVDIMM_MODE_SECTOR, NVDIMM_ACTION_RECONFIGURE
+-
+-
+-class NVDIMMInterfaceTestCase(unittest.TestCase):
+-    """Test DBus interface of the NVDIMM module."""
+-
+-    def setUp(self):
+-        """Set up the module."""
+-        self.nvdimm_module = NVDIMMModule()
+-        self.nvdimm_interface = NVDIMMInterface(self.nvdimm_module)
+-
+-    def test_is_supported(self):
+-        assert self.nvdimm_interface.IsSupported() is True
+-
+-    def test_get_devices_to_ignore(self):
+-        """Test GetDevicesToIgnore."""
+-        assert self.nvdimm_interface.GetDevicesToIgnore() == []
+-
+-    def test_set_namespaces_to_use(self):
+-        """Test SetNamespacesToUse."""
+-        self.nvdimm_interface.SetNamespacesToUse(["namespace0.0", "namespace1.0"])
+-
+-    @patch_dbus_publish_object
+-    def test_reconfigure_with_task(self, publisher):
+-        """Test ReconfigureWithTask."""
+-        task_path = self.nvdimm_interface.ReconfigureWithTask("namespace0.0", "sector", 512)
+-
+-        obj = check_task_creation(task_path, publisher, NVDIMMReconfigureTask)
+-
+-        assert obj.implementation._namespace == "namespace0.0"
+-        assert obj.implementation._mode == "sector"
+-        assert obj.implementation._sector_size == 512
+-
+-        assert self.nvdimm_module.find_action("namespace0.0") is None
+-        obj.implementation.succeeded_signal.emit()
+-
+-        action = self.nvdimm_module.find_action("namespace0.0")
+-        assert action.action == NVDIMM_ACTION_RECONFIGURE
+-        assert action.namespace == "namespace0.0"
+-        assert action.mode == "sector"
+-        assert action.sectorsize == 512
+-
+-
+-class NVDIMMTasksTestCase(unittest.TestCase):
+-    """Test NVDIMM tasks."""
+-
+-    def test_failed_reconfiguration(self):
+-        """Test the reconfiguration test."""
+-        with pytest.raises(StorageConfigurationError):
+-            NVDIMMReconfigureTask("namespace0.0", "sector", 512).run()
+-
+-    @patch("pyanaconda.modules.storage.nvdimm.reconfigure.nvdimm")
+-    def test_reconfiguration(self, nvdimm):
+-        """Test the reconfiguration test."""
+-        NVDIMMReconfigureTask(
+-            "namespace0.0", "sector", sector_size=512
+-        ).run()
+-
+-        nvdimm.reconfigure_namespace.assert_called_once_with(
+-            "namespace0.0", "sector", sector_size=512
+-        )
+-
+-
+-class NVDIMMKickstartTestCase(unittest.TestCase):
+-    """Test updating of nvdimm command from UI.
+-
+-    The update is done:
+-    - always by disk selection in UI.
+-    - optionally by reconfiguring NVDIMM in UI.
+-    """
+-
+-    def setUp(self):
+-        self.maxDiff = None
+-        self.storage_module = StorageService()
+-        self.nvdimm_module = self.storage_module._nvdimm_module
+-        self.nvdimm_interface = NVDIMMInterface(self.nvdimm_module)
+-
+-    def _read(self, input_ks):
+-        """Read the kickstart string."""
+-        with patch("pyanaconda.modules.storage.kickstart.nvdimm") as nvdimm:
+-            # Fake the existence of the namespaces.
+-            nvdimm.namespaces = ["namespace0.0", "namespace1.0"]
+-
+-            # Parse the kickstart now.
+-            self.storage_module.read_kickstart(input_ks)
+-
+-    def _use(self, namespaces):
+-        """Represents update for NVDIMM disks selected in UI."""
+-        storage = create_storage()
+-        self.storage_module._set_storage(storage)
+-
+-        for number, namespace in enumerate(namespaces):
+-            device = NVDIMMNamespaceDevice(
+-                "dev{}".format(number),
+-                fmt=get_format("disklabel"),
+-                size=Size("10 GiB"),
+-                mode="sector",
+-                devname=namespace,
+-                sector_size=512,
+-                id_path="pci-0000:00:00.0-bla-1",
+-                exists=True
+-            )
+-            storage.devicetree._add_device(device)
+-
+-    def _reconfigure(self, namespace, sector_size):
+-        """Represents update for NVDIMM disk reconfigured in UI."""
+-        self.nvdimm_module.update_action(
+-            namespace=namespace,
+-            mode=NVDIMM_MODE_SECTOR,
+-            sector_size=sector_size
+-        )
+-
+-    def _check(self, expected_ks):
+-        """Check the generated kickstart."""
+-        assert clear_version_from_kickstart_string(self.storage_module.generate_kickstart()).strip() == \
+-            dedent(expected_ks).strip()
+-
+-    def _check_ignored(self, expected_devices):
+-        """Check the ignored devices."""
+-        with patch("pyanaconda.modules.storage.nvdimm.nvdimm.nvdimm") as nvdimm:
+-            nvdimm.namespaces = {
+-                "namespace0.0": Mock(blockdev="pmem0", mode=blockdev.NVDIMMNamespaceMode.SECTOR),
+-                "namespace1.0": Mock(blockdev="pmem1", mode=blockdev.NVDIMMNamespaceMode.SECTOR),
+-                "namespace2.0": Mock(blockdev="pmem2", mode=blockdev.NVDIMMNamespaceMode.MEMORY),
+-                "namespace3.0": Mock(blockdev=None, mode=blockdev.NVDIMMNamespaceMode.DEVDAX),
+-            }
+-
+-            ignored_devices = self.nvdimm_module.get_devices_to_ignore()
+-            assert sorted(ignored_devices) == expected_devices
+-
+-    # Test setting use from UI
+-
+-    def test_ksuse_use(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksuse_use2(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm use --namespace=namespace0.0
+-        nvdimm use --namespace=namespace1.0
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        self._use(["namespace0.0", "namespace1.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksuse_use_none(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        expected_ks = """
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        self._use([])
+-        self._check(expected_ks)
+-
+-    def test_ksnone_use2(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm use --namespace=namespace0.0
+-        nvdimm use --namespace=namespace1.0
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem1", "pmem2"])
+-        self._use(["namespace0.0", "namespace1.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksnone_repeated_use(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem1", "pmem2"])
+-        self._use(["namespace0.0"])
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksnone_use_none(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        """
+-        expected_ks = """
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem1", "pmem2"])
+-        self._use([])
+-        self._check(expected_ks)
+-
+-    def test_ksnone_repeated_use_2(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm use --namespace=namespace1.0
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem1", "pmem2"])
+-        self._use(["namespace0.0"])
+-        # Next use should override the previous
+-        self._use(["namespace1.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksuse_another_use(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm use --namespace=namespace1.0
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem2"])
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksuse_none(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm use --namespace=namespace1.0
+-        """
+-        expected_ks = """
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem2"])
+-        self._use([])
+-        self._check(expected_ks)
+-
+-    def test_ksreconfigure_use(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksreconfigure_use_none(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        # Even when not used, the reconfiguration should go to generated kicksart
+-        self._use([])
+-        self._check(expected_ks)
+-
+-    def test_ksreconfigure_another_use(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        nvdimm use --namespace=namespace1.0
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        self._use(["namespace1.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksreconfigure_ksuse_another_use(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        nvdimm use --namespace=namespace1.0
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem2"])
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksreconfigure_2_use_1(self):
+-        """Test updating of nvdimm commands based on device selection in UI."""
+-        input_ks = """
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem2"])
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+-
+-    # Test reconfigure and use in UI
+-    # (if _reconfigure is done in UI, _use is always done as well)
+-
+-    def test_ksnone_reconfigure_use(self):
+-        """Test updating of nvdimm commands based on device reconfiguration in UI."""
+-        input_ks = """
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem1", "pmem2"])
+-        self._reconfigure("namespace0.0", 512)
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksnone_repeated_reconfigure_use(self):
+-        """Test updating of nvdimm commands based on device reconfiguration in UI."""
+-        input_ks = """
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=4096
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem1", "pmem2"])
+-        self._reconfigure("namespace0.0", 512)
+-        self._reconfigure("namespace0.0", 4096)
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksnone_repeated_reconfigure_repeated_use(self):
+-        """Test updating of nvdimm commands based on device reconfiguration in UI."""
+-        input_ks = """
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace0.0 --mode=sector --sectorsize=512
+-        nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem0", "pmem1", "pmem2"])
+-        self._reconfigure("namespace0.0", 512)
+-        self._use(["namespace0.0"])
+-        self._reconfigure("namespace1.0", 512)
+-        # Even when not used, reconfiguration goes to generated ks
+-        self._use(["namespace1.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksuse_reconfigure_other_use_other(self):
+-        """Test updating of nvdimm commands based on device reconfiguration in UI."""
+-        input_ks = """
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        self._reconfigure("namespace1.0", 512)
+-        self._use(["namespace1.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksuse_2_reconfigure_1_use_2(self):
+-        """Test updating of nvdimm commands based on device reconfiguration in UI."""
+-        input_ks = """
+-        nvdimm use --namespace=namespace0.0
+-        nvdimm use --namespace=namespace1.0
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem2"])
+-        self._reconfigure("namespace1.0", 512)
+-        self._use(["namespace0.0", "namespace1.0"])
+-        self._check(expected_ks)
+-
+-    def test_ksuse_reconfigure_other_use_none(self):
+-        """Test updating of nvdimm commands based on device reconfiguration in UI."""
+-        input_ks = """
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
+-        """
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        self._reconfigure("namespace1.0", 512)
+-
+-        # Even when not used, the reconfiguration should go to generated kickstart.
+-        self._use([])
+-        self._check(expected_ks)
+-
+-    @patch("pyanaconda.modules.storage.kickstart.device_matches")
+-    def test_ksuse_blockdevs(self, device_matches):
+-        """Test using blockdevs."""
+-        input_ks = """
+-        nvdimm use --blockdev=pmem0,pmem2
+-        """
+-        expected_ks = """
+-        # NVDIMM devices setup
+-        nvdimm use --namespace=namespace0.0
+-        """
+-        device_matches.return_value = ["pmem0", "pmem2"]
+-        self._read(input_ks)
+-        self._check_ignored(["pmem1", "pmem2"])
+-        self._use(["namespace0.0"])
+-        self._check(expected_ks)
+diff --git a/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_storage.py b/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_storage.py
+index 4cc3f26..d7554b0 100644
+--- a/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_storage.py
++++ b/tests/unit_tests/pyanaconda_tests/modules/storage/test_module_storage.py
+@@ -25,11 +25,8 @@ import pytest
+ 
+ from unittest.mock import patch, Mock, PropertyMock
+ 
+-from blivet.devices import NVDIMMNamespaceDevice
+-from blivet.formats import get_format
+ from blivet.formats.fs import BTRFS
+-from blivet.size import Size
+-
++from dasbus.typing import *  # pylint: disable=wildcard-import
+ from pykickstart.errors import KickstartParseError
+ 
+ from pyanaconda.modules.storage.bootloader import BootLoaderFactory
+@@ -52,10 +49,8 @@ from pyanaconda.modules.storage.platform import S390
+ from tests.unit_tests.pyanaconda_tests import check_kickstart_interface, check_task_creation, \
+     patch_dbus_publish_object, check_dbus_property, patch_dbus_get_proxy, \
+     reset_boot_loader_factory, reset_dbus_container
+-
+ from pyanaconda.modules.storage.bootloader.grub2 import IPSeriesGRUB2, GRUB2
+ from pyanaconda.modules.storage.bootloader.zipl import ZIPL
+-from dasbus.typing import *  # pylint: disable=wildcard-import
+ from pyanaconda.modules.common.errors.storage import InvalidStorageError
+ from pyanaconda.modules.common.task import TaskInterface
+ from pyanaconda.modules.storage.installation import CreateStorageLayoutTask, \
+@@ -1275,65 +1270,6 @@ class StorageInterfaceTestCase(unittest.TestCase):
+         """
+         self._test_kickstart(ks_in, ks_out)
+ 
+-    def _add_nvdimm_device(self, name, namespace):
+-        """Add a fake NVDIMM device."""
+-        storage = self.storage_module.storage
+-        device = NVDIMMNamespaceDevice(
+-            name,
+-            fmt=get_format("disklabel"),
+-            size=Size("10 GiB"),
+-            mode="sector",
+-            devname=namespace,
+-            sector_size=512,
+-            id_path="pci-0000:00:00.0-bla-1",
+-            exists=True
+-        )
+-        storage.devicetree._add_device(device)
+-
+-    @patch("pyanaconda.modules.storage.kickstart.nvdimm")
+-    def test_nvdimm_kickstart(self, nvdimm):
+-        """Test the nvdimm command."""
+-        ks_in = """
+-        nvdimm use --namespace=namespace0.0
+-        nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
+-        """
+-        ks_out = """
+-        # NVDIMM devices setup
+-        nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
+-        nvdimm use --namespace=namespace0.0
+-        """
+-
+-        self._add_nvdimm_device("dev1", "namespace0.0")
+-        self._add_nvdimm_device("dev2", "namespace1.0")
+-
+-        nvdimm.namespaces = ["namespace0.0", "namespace1.0"]
+-        self._test_kickstart(ks_in, ks_out)
+-
+-        nvdimm.namespaces = ["namespace0.0"]
+-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+-
+-        nvdimm.namespaces = ["namespace1.0"]
+-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+-
+-    @patch("pyanaconda.modules.storage.kickstart.device_matches")
+-    def test_nvdimm_blockdevs_kickstart(self, device_matches):
+-        """Test the nvdimm command with blockdevs."""
+-        ks_in = """
+-        nvdimm use --blockdevs=pmem0
+-        """
+-        ks_out = """
+-        # NVDIMM devices setup
+-        nvdimm use --namespace=namespace0.0
+-        """
+-
+-        self._add_nvdimm_device("dev1", "namespace0.0")
+-
+-        device_matches.return_value = ["pmem0"]
+-        self._test_kickstart(ks_in, ks_out)
+-
+-        device_matches.return_value = []
+-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+-
+     def test_snapshot_kickstart(self):
+         """Test the snapshot command."""
+         ks_in = """
+-- 
+2.34.1
